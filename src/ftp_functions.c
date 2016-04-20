@@ -175,6 +175,8 @@ ftp_thread(void * args)
 		int client_data_fd = 0;
 		long data_port = -1;
 		char * local_ip_address = NULL;
+		// Default active
+		int active = 1;
 
 		while ( (nread = read(client.fd, buf_ptr, sizeof(buf))) > 0)
 		{
@@ -246,6 +248,8 @@ ftp_thread(void * args)
 				// Choose random port to listen for data connections
 				if (data_port < 0)
 				{
+					printf("In here!\n");
+					fflush(stdout);
 					data_port = get_random_port();
 					// Close any existing connections
 					// close(data_fd);
@@ -254,6 +258,8 @@ ftp_thread(void * args)
 					// client_data_fd = 0;
 
 					data_fd = initiate_server(data_port);
+					if (data_fd < 0)
+						error("Error initiating passive connection!");
 			 		local_ip_address = get_formatted_local_ip_address(data_port);
 			 		if (local_ip_address == NULL)
 			 			error("Error on getting formatted local IP Address");
@@ -267,6 +273,7 @@ ftp_thread(void * args)
 				if (nwrite < 0)
 					error("Error on sending passive server mode");
 
+				active = 0;
 				free(full_client_message);
 				full_client_message = NULL;
 
@@ -301,13 +308,33 @@ ftp_thread(void * args)
 			{
 				printf("In command PORT!\n");
 				fflush(stdout);
-				// Get port name
+
+				// Get IP Address + port name
 				str = strtok(NULL, " ");
-				PORT = calloc(strlen(str)+1, 1);
-				strcpy(PORT, str);
+				// Separate IP Address + port name based on commas
+				char * comma_separated_string = strtok(str, ",");
+				// Read until we get the two numbers corresponding to the ports
+				for (int i=0; i < 4; i++)
+					comma_separated_string = strtok(NULL, ",");
+
+				int upper_bits = atoi(strtok(NULL, ","));
+				int lower_bits = atoi(strtok(NULL, ","));
+				printf("%d,%d",upper_bits,lower_bits);
+				fflush(stdout);
+
+				int calculated_port = (upper_bits * (2^8)) + lower_bits;
+
+				// Free the old port
+				free(PORT);
+				PORT = NULL;
+				// Allocate a new buffer for the port
+				PORT = calloc(6, 1);
+				sprintf(PORT,"%d",calculated_port);
+				
 				nwrite = write(client.fd, "200 Entering active mode\r\n", strlen("200 Activated Active transfer\r\n"));
 			    if (nwrite < 0)
 				    error("Error on writing PORT success status to client");
+				active = 1;
 			}
 
 			else if (strcmp(str, "LIST") == 0)
@@ -354,7 +381,7 @@ ftp_thread(void * args)
 				}
 
 				// Passive mode
-				if (PORT == NULL)
+				if (!active)
 				{
 					struct sockaddr_storage temp;
 					socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
@@ -368,6 +395,8 @@ ftp_thread(void * args)
 					else
 						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
 					close(file_fd);
+					close(client_data_fd);
+					close(data_fd);
 				}
 
 				// Active mode
@@ -408,6 +437,7 @@ ftp_thread(void * args)
 					else
 						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
 					close(file_fd);
+					close(data_fd);
 				}
 			}
 
@@ -468,7 +498,7 @@ ftp_thread(void * args)
 					error("Error on communicating ASCII file transfer to client\n");
 
 				// Passive mode
-				if (PORT == NULL)
+				if (!active)
 				{
 					struct sockaddr_storage temp;
 					socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
@@ -482,6 +512,8 @@ ftp_thread(void * args)
 					else
 						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
 					close(file_fd);
+					close(client_data_fd);
+					close(data_fd);
 				}
 
 				// Active mode
@@ -522,6 +554,7 @@ ftp_thread(void * args)
 					else
 						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
 					close(file_fd);
+					close(data_fd);
 				}
 
 			}
@@ -552,7 +585,7 @@ ftp_thread(void * args)
 				}
                 
                 // Passive mode data transfer
-				if (PORT == NULL)
+				if (!active)
 				{
 					struct sockaddr_storage temp;
 					socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
@@ -561,12 +594,14 @@ ftp_thread(void * args)
 						error("Error on accepting client channel for data transfer");
 
 					// Use same function as STOR command, only here we append
-					err = STOR(file_fd, data_fd);
+					err = STOR(file_fd, client_data_fd);
 					if (err < 0)
 						nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
 					else
 						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
 					close(file_fd);
+					close(client_data_fd);
+					close(data_fd);
 				}
 
 				// Active mode
@@ -607,6 +642,7 @@ ftp_thread(void * args)
 					else
 						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
 					close(file_fd);
+					close(data_fd);
 				}
 
 			}
@@ -790,7 +826,10 @@ STOR(int file_fd, int data_fd)
 	}
 
 	if (nread < 0)
+	{
+		error("Error in store!");
 		return -1;
+	}
 	else
 		return 0;
 }

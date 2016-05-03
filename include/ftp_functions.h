@@ -21,6 +21,7 @@
 
 #define NUM_THREADS 5
 #define MAX_NUM_CONNECTED_CLIENTS 5
+#define DEBUG
 
 // Number of jobs available for processing
 int available_jobs; 

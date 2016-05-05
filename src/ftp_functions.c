@@ -4,8 +4,9 @@
 void
 error(const char * message)
 {
+	/* Print the error message */
 	perror(message);
-	printf("errno: %d\n", errno);
+	/* Deallocate resources related to the thread pool and mutexes */
 	destroy();
 	free_jobs(head);
 	exit(1);
@@ -262,27 +263,26 @@ ftp_thread(void * args)
 				free(full_message);
 			}
 
-			/* Server recieves command from client directing its switch to Passive mode FTP */
+			/* Server recieves command from client directing its switch to Passive mode FTP with *IPV4 Only*/
 			else if(strcmp(command, "PASV") == 0)
 			{
 				#ifdef DEBUG
-				printf("Client issued passive FTP\n");
+				printf("Client issued command PASV!\n");
 				fflush(stdout);
 				#endif
 
-				/* Choose random port to listen for data connections, if we have 
-					already chosen a random port in a prior PASV command, then we recycle that
-					port */
-				if (data_port < 0)
-					data_port = get_random_port();
+				/* Choose a random port to listen for data connections */
+				data_port = get_random_port();
 
 				/* Generate a socket that is listening on the randomly generated port */
 			 	data_fd = initiate_server(data_port);
 				if (data_fd < 0)
 					error("Error initiating passive FTP socket!");
 
-				/* Get formatted IP Address + Port to send to the client */
-			 	local_ip_address = get_formatted_local_ip_address(data_port);
+				/* Get formatted IP Address + Port to send to the client.
+					We also specify that we require IPv4 only, since we are not in
+					extended passive mode. */
+			 	local_ip_address = get_formatted_local_ip_address(data_port,1);
 			 	if (local_ip_address == NULL)
 			 		error("Error on getting formatted local IP Address");
 
@@ -301,6 +301,43 @@ ftp_thread(void * args)
 				free(full_client_message);
 				full_client_message = NULL;
 			}
+
+			// /* Server recieves command from client directing its switch to Passive mode FTP with *Both IPv4 and IPv6* */
+			// else if(strcmp(command, "EPSV") == 0)
+			// {
+			// 	#ifdef DEBUG
+			// 	printf("Client issued command EPSV!\n");
+			// 	fflush(stdout);
+			// 	#endif
+
+			// 	/* Choose a random port to listen for data connections */
+			// 	data_port = get_random_port();
+
+			// 	/* Generate a socket that is listening on the randomly generated port */
+			//  	data_fd = initiate_server(data_port);
+			// 	if (data_fd < 0)
+			// 		error("Error initiating passive FTP socket!");
+
+			// 	/* Get formatted IP Address + Port to send to the client. */
+			//  	local_ip_address = get_formatted_local_ip_address(data_port,1);
+			//  	if (local_ip_address == NULL)
+			//  		error("Error on getting formatted local IP Address");
+
+			//  	/* Construct status message for client, informing him/her of the 
+			//  		local endpoint of the passive FTP */
+			//  	char * full_client_message = (char *) calloc(strlen("229 Entering passive mode. \r\n") + strlen(local_ip_address),1);
+			// 	strcat(full_client_message, "229 Entering passive mode. ");
+			// 	strcat(full_client_message, local_ip_address);
+			// 	strcat(full_client_message, "\r\n");
+			// 	nwrite = write(client.fd,full_client_message,strlen(full_client_message));
+			// 	if (nwrite < 0)
+			// 		error("Error on sending passive server mode");
+
+			// 	/* We switch active mode off and deallocate resources */
+			// 	active = 0;
+			// 	free(full_client_message);
+			// 	full_client_message = NULL;
+			// }
 
 			/* Command to change the working directory of the server executable */
 			else if (strcmp(command, "CWD") == 0)
@@ -658,7 +695,7 @@ ftp_thread(void * args)
 			else if (strcmp(command,"APPE") == 0)
 			{
 				#ifdef DEBUG
-				printf("Client has issued command APPE\n");
+				printf("Client has issued command APPE!\n");
 				fflush(stdout);
 				#endif
 
@@ -770,55 +807,81 @@ ftp_thread(void * args)
 
 			}
 			
+			/* Client has issued the command to remove a specified directory */
 			else if (strcmp(command,"RMD") == 0)
 			{
-				printf("In command RMD!\n");
+				#ifdef DEBUG
+				printf("Client has issued command RMD!\n");
 				fflush(stdout);
-				// Get directory name for removing
+				#endif
+
+				/* Obtain the directory name for removal */
 				const char * dirname = strtok(NULL, " ");
 
+				/* Then simply remove the specified directory */
 				err = rmdir(dirname);
 				if (err < 0)
 					nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
 				else
-					nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
+					nwrite = write(client.fd, "226 Removal complete\r\n", sizeof("226 Removal complete\r\n"));
 			}
 
+			/* Client has issued the command to make a new directory */
 			else if (strcmp(command, "MKD") == 0)
 			{
-				printf("In command MKD : %s!\n",command);
+				#ifdef DEBUG
+				printf("Client has issued command MKD!\n");
 				fflush(stdout);
-				// Get name of directory to be created
+				#endif
+
+				/* Obtain the directory name for removal */
 				const char * dirname = strtok(NULL, " ");
 
-				// TODO: How to get mode of new directory
+				/* TODO: How to get the mode of the new directory? */
 
+				/* Then simply make the specified new directory */
 				err = mkdir(dirname, 0644);
 				if (err < 0)
 					nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
 				else
-					nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
+					nwrite = write(client.fd, "226 Directory creation complete\r\n", sizeof("226 Directory creation complete\r\n"));
 			}
 
+			/* The command issued by the client could not be matched with any of the 
+				commands supported by the server */
 			else
 			{
+				#ifdef DEBUG
 				printf("Unsupported command issued by client\n");
 				fflush(stdout);
+				#endif
+
+				/* Inform the client that the command he/she sent is not suppported by the server */
 				nwrite = write(client.fd, "500 Command not supported\r\n", strlen("500 Command not supported\r\n"));
 				if (nwrite < 0)
-					error("Error on accepting username");
+					error("Error in informing client of unsupported command");
 			}
 
+			/* Reset the buffer to receive the next command, removing any residual characters */
          	memset(buf_ptr,0,sizeof(buf));
 		}
 
+		/* Client has either closed his/her side of the connection or we encountered a 
+			connection failure, therefore we close the connection */
+		close(client.fd);
+
+		#ifdef DEBUG
+		printf("Client connection stopped or failed!\n");
+		fflush(stdout);
+		#endif
+
+		/* Deallocate certain buffers */
 		free(PORT);
 		PORT = NULL;
 		free(local_ip_address);
 		local_ip_address = NULL;
-		close(client.fd);
-		printf("Client connection stopped or failed!");
-		fflush(stdout);
+
+		/* Thread will continue to wait for further client connections to process */
 		continue;
 	}
 }
@@ -909,7 +972,7 @@ initiate_server(long port)
 	#ifdef DEBUG
 	printf("Initiating server on port: %s\n",port_pointer);
 	fflush(stdout);
-	#endif DEBUG
+	#endif
 
 
 	/* Use getaddrinfo to fill out the IP Address and port number information */
@@ -1046,7 +1109,7 @@ get_random_port()
 	normative for FTP servers; an example would be (187,165,1,12,210,19)
 	*/
 char *
-get_formatted_local_ip_address(unsigned int port)
+get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
 {
 	/* Use getifaddrs to get network interfaces of the local machine and combine it
 		with the inputted port */
@@ -1081,6 +1144,11 @@ get_formatted_local_ip_address(unsigned int port)
         /* Analogously, we perform the same procedure with IPV6 */
         else if (ifa->ifa_addr->sa_family == AF_INET6) 
         { 
+        	/* If the client specified non-extended passive mode, we must return only
+        		IPv4 Addresses */
+        	if (IPV4ONLY)
+        		continue;
+
             if (strcmp(ifa->ifa_name,"lo0") ==0)
                 continue;
 
@@ -1101,9 +1169,9 @@ get_formatted_local_ip_address(unsigned int port)
     	actually just simple moving around of strings and characters */
     char * buf_ptr = NULL;
     if (ipv4)
-    	char * buf_ptr = address_buffer_ipv4;
+    	buf_ptr = address_buffer_ipv4;
     else
-    	char * buf_ptr = address_buffer_ipv6;
+    	buf_ptr = address_buffer_ipv6;
 
     for (int i=0; i < strlen(buf_ptr); i++)
     {
@@ -1206,22 +1274,3 @@ get_active_client_connection(const char * ip_address, const char * port)
 	/* Return the obtained socket file descriptor corresponding to our active client connection */
 	return fd;
 }
-
-// TODO: FURTHER SANITY CHECK AND CLEANUP, FINISH DEBUGGING, then make multithreaded
-			// EXACT COMMAND SEQUENCE: https://www.webdigi.co.uk/blog/2009/ftp-using-raw-commands-and-telnet/
-				/*
-
-				   For example, a user connects to the directory /usr/dm, and creates
-      				a subdirectory, named pathname:
-
-         			CWD /usr/dm
-         			200 directory changed to /usr/dm
-    	     		MKD pathname
-        		    257 "/usr/dm/pathname" directory created
-      				An example with an embedded double quote:
-
-         			MKD foo"bar
-         			257 "/usr/dm/foo""bar" directory created
-        			CWD /usr/dm/foo"bar
-         			200 directory changed to /usr/dm/foo"bar
-         		*/

@@ -248,8 +248,11 @@ ftp_thread(void * args)
 				/* Print the current working directory of the server, along with the associated
 					status codes */
 				char * working_directory = getenv("PWD");
-				char * full_message = calloc(strlen("257\r\n") + strlen(working_directory),1);
+				char * full_message = calloc(strlen("257 \r\n") + strlen(working_directory)+2,1);
+				strcat(full_message,"257 ");
+				strcat(full_message,"\"");
 				strcat(full_message, working_directory);
+				strcat(full_message,"\"");
 				strcat(full_message, "\r\n");
 				nwrite = write(client.fd,full_message,strlen(full_message));
 				if (nwrite < 0)
@@ -422,14 +425,93 @@ ftp_thread(void * args)
 
 				/* Format and send the status message to the client, along with the contents
 					of the current working directory */
-				char * full_message = calloc(strlen(directory_list)+strlen("226 \r\n"),1);
-				strcat(full_message,"226 ");
+				char * full_message = calloc(strlen(directory_list)+strlen("\r\n"),1);
 				strcat(full_message, directory_list);
 				strcat(full_message,"\r\n");
 
-				nwrite = write(client.fd, full_message, strlen(full_message));
+				/* Handle the case where the client has currently chosen passive mode to be their
+					desired form of data transfer */
+				if (!active)
+				{
+					struct sockaddr_storage temp;
+					socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
+					/* 'Accept' the incoming client connection to our established socket */
+					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
+					if (client_data_fd < 0)
+						error("Error on accepting passive client connection for data transfer during LIST");	
+					else
+						nwrite = write(client.fd,"150 Opening ASCII mode data connection\r\n",strlen("150 Opening ASCII mode data connection\r\n"));
+
+					nwrite = write(client_data_fd, full_message, strlen(full_message));
+					if (nwrite < 0)
+						error("Error when sending directory contents to client in response to LIST command");
+
+
+					/* Close the socket descriptors that connect to the client.
+						Note that this ends the current passive mode connection; a new connection will have to be established
+						before performing further transfers */
+					close(client_data_fd);
+					close(data_fd);
+				}
+
+				/* Handle the case where the client has currently chosen active mode to be their
+					desired form of data transfer */
+				else
+				{
+					socklen_t len = sizeof(struct sockaddr_storage);
+
+					/* Keep track of the IP address and the port of the client: we will be transferring the bytes
+						of the file to this port */
+					char hoststr[NI_MAXHOST];
+					char portstr[NI_MAXSERV];
+
+					/* Obtain the IP Address and port number of the current client connection */
+					err = getnameinfo((struct sockaddr *)&(client.client_addr), len, hoststr, sizeof(hoststr), portstr, sizeof(portstr), NI_NUMERICHOST | NI_NUMERICSERV);
+
+					/* Handle error situations in processing the client connection */
+					if (err != 0) 
+					{
+						nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
+						if (nwrite < 0)
+							error("Error on communicating data connection error to client\n");
+						continue;	
+					}
+
+					/* Successfully obtained information regarding the client's connection */
+					else
+					{
+						/* Use a helper function to connect to the client's IP Address, but in a *different* port than the
+							regular command transfers. This different port, used for data transfers, was provided earlier via
+							the PORT command */
+						data_fd = get_active_client_connection(hoststr, PORT);
+
+						/* If we for some reason fail when trying to connect to the client port for active FTP, we inform the client */
+						if (data_fd < 0)
+						{
+							nwrite = write(client.fd, "425 can't open active data connection\r\n", sizeof("425 can't open active data connection\r\n"));
+							continue;
+						}
+						else
+							nwrite = write(client.fd,"150 Opening ASCII mode data connection\r\n",strlen("150 Opening ASCII mode data connection\r\n"));
+					}
+
+					nwrite = write(data_fd, full_message, strlen(full_message));
+					if (nwrite < 0)
+						error("Error when sending directory contents to client in response to LIST command");
+
+					/* Close the associated file descriptors */
+					close(data_fd);
+				}
+
+
+				#ifdef DEBUG
+				printf("Finish listing directory contents! \n");
+				fflush(stdout);
+				#endif
+
+				nwrite = write(client.fd,"226 Directory contents listed\r\n",strlen("226 Directory contents listed\r\n"));
 				if (nwrite < 0)
-					error("Error when sending directory contents to client in response to LIST command");
+					error("Error when writing LIST success status to client");
 
 				/* Deallocate resources */
 				free(full_message);

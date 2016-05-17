@@ -10,7 +10,7 @@ all: sftp2_server
 	$(CC) $(CFLAGS) $<
 
 sftp2_server: $(SERVER_OBJECTS)
-	$(CC) -o $(EXECUTABLE_DIRECTORY)/$@ $(SERVER_OBJECTS)
+	$(CC) -o $(EXECUTABLE_DIRECTORY)/$@ -pthread $(SERVER_OBJECTS)
 
 clean:
 	rm $(SERVER_OBJECTS)

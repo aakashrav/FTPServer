@@ -77,7 +77,7 @@ initiate_server(long port);
 
 /* Used to accomplish the RETR FTP command */
 int 
-RETR(int file_fd, int data_fd);
+RETR(int file_fd, int data_fd, int binary_flag);
 
 /* Used to accmplish the LIST FTP command */
 char *
@@ -85,7 +85,7 @@ LIST(char * dir_name);
 
 /* Used to accomplish the STOR FTP command */
 int
-STOR(int file_fd, int data_fd);
+STOR(int file_fd, int data_fd, int binary_flag);
 
 /* Gets a random port in the range [1000,65535] for passive FTP connections */
 long
@@ -98,6 +98,10 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY);
 /* Connects to the client with the given IP Address and Port in active mode */
 int
 get_active_client_connection(const char * ip_address, const char * port);
+
+/* Reads a line from the inputted file and outputs the contents into the buffer */
+int
+readline(FILE *f, char *buffer, int len);
 
 #endif
 

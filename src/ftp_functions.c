@@ -185,6 +185,16 @@ ftp_thread(void * args)
 		*/
 		int active = 1;
 
+		/* Keep track of whether the client has requested ASCII file transfer or
+			binary file transfer. At the beginning, we start with ASCII file transfer mode.
+		*/
+		int binary_flag = 0;
+
+		/* A variable to keep track of the program's current working directory */
+		char * new_path = calloc(strlen(getenv("PWD"))+1,1);
+		strcat(new_path,getenv("PWD"));
+		strcat(new_path,"/");
+
 		/* While the client is sending us a message, process the message.
 			TODO: Set a timeout alarm so that we aren't waiting too long on the client
 			to send a command 
@@ -242,12 +252,24 @@ ftp_thread(void * args)
 					error("Error on sending extensions");
 			}
 
+			/* Client has exited FTP, we wish the client a goodbye and close this connection. */
+  			else if ( (strcmp(command,"QUIT") == 0) || (strcmp(command,"quit") == 0) )  
+			{
+				nwrite = write(client.fd,"Goodbye.\r\n",strlen("Goodbye.\r\n"));
+				if (nwrite < 0)
+					error("Error on wishing client goodbye.");
+				close(client.fd);
+				break;
+			}
+
 			/* Send client details about the current working directory of the server executable */
 			else if(strcmp(command,"PWD")==0)
 			{
 				/* Print the current working directory of the server, along with the associated
 					status codes */
-				char * working_directory = getenv("PWD");
+				char * working_directory = new_path;
+				printf("%s\n",new_path);
+				fflush(stdout);
 				char * full_message = calloc(strlen("257 \r\n") + strlen(working_directory)+2,1);
 				strcat(full_message,"257 ");
 				strcat(full_message,"\"");
@@ -305,42 +327,42 @@ ftp_thread(void * args)
 				full_client_message = NULL;
 			}
 
-			// /* Server recieves command from client directing its switch to Passive mode FTP with *Both IPv4 and IPv6* */
-			// else if(strcmp(command, "EPSV") == 0)
-			// {
-			// 	#ifdef DEBUG
-			// 	printf("Client issued command EPSV!\n");
-			// 	fflush(stdout);
-			// 	#endif
+			/* Server recieves command from client directing its switch to Passive mode FTP with *Both IPv4 and IPv6* */
+			else if(strcmp(command, "EPSV") == 0)
+			{
+				#ifdef DEBUG
+				printf("Client issued command EPSV!\n");
+				fflush(stdout);
+				#endif
 
-			// 	/* Choose a random port to listen for data connections */
-			// 	data_port = get_random_port();
+				/* Choose a random port to listen for data connections */
+				data_port = get_random_port();
 
-			// 	/* Generate a socket that is listening on the randomly generated port */
-			//  	data_fd = initiate_server(data_port);
-			// 	if (data_fd < 0)
-			// 		error("Error initiating passive FTP socket!");
+				/* Generate a socket that is listening on the randomly generated port */
+			 	data_fd = initiate_server(data_port);
+				if (data_fd < 0)
+					error("Error initiating passive FTP socket!");
 
-			// 	/* Get formatted IP Address + Port to send to the client. */
-			//  	local_ip_address = get_formatted_local_ip_address(data_port,1);
-			//  	if (local_ip_address == NULL)
-			//  		error("Error on getting formatted local IP Address");
+				/* Get formatted IP Address + Port to send to the client. */
+			 	local_ip_address = get_formatted_local_ip_address(data_port,0);
+			 	if (local_ip_address == NULL)
+			 		error("Error on getting formatted local IP Address");
 
-			//  	/* Construct status message for client, informing him/her of the 
-			//  		local endpoint of the passive FTP */
-			//  	char * full_client_message = (char *) calloc(strlen("229 Entering passive mode. \r\n") + strlen(local_ip_address),1);
-			// 	strcat(full_client_message, "229 Entering passive mode. ");
-			// 	strcat(full_client_message, local_ip_address);
-			// 	strcat(full_client_message, "\r\n");
-			// 	nwrite = write(client.fd,full_client_message,strlen(full_client_message));
-			// 	if (nwrite < 0)
-			// 		error("Error on sending passive server mode");
+			 	/* Construct status message for client, informing him/her of the 
+			 		local endpoint of the passive FTP */
+			 	char * full_client_message = (char *) calloc(strlen("229 Entering passive mode. \r\n") + strlen(local_ip_address),1);
+				strcat(full_client_message, "229 Entering passive mode. ");
+				strcat(full_client_message, local_ip_address);
+				strcat(full_client_message, "\r\n");
+				nwrite = write(client.fd,full_client_message,strlen(full_client_message));
+				if (nwrite < 0)
+					error("Error on sending passive server mode");
 
-			// 	/* We switch active mode off and deallocate resources */
-			// 	active = 0;
-			// 	free(full_client_message);
-			// 	full_client_message = NULL;
-			// }
+				/* We switch active mode off and deallocate resources */
+				active = 0;
+				free(full_client_message);
+				full_client_message = NULL;
+			}
 
 			/* Command to change the working directory of the server executable */
 			else if (strcmp(command, "CWD") == 0)
@@ -353,15 +375,24 @@ ftp_thread(void * args)
 				/* Obtain the exact directory the client would like to switch to via strtok() */
 				command = strtok(NULL, " ");
 
-				/* Switch to the inputted directory
-					TODO: Send client failure notification instead of just quitting */
-				err = chdir(command);
-				if (err < 0)
-					error("Error switching directories as requested by client");
+				#ifdef DEBUG
+				printf("Switching to directory %s at the request of the client\n",command);
+				fflush(stdout);
+				#endif
 
-				nwrite = write(client.fd, "250\r\n", strlen("250\r\n"));
+				new_path = realloc(new_path,strlen(new_path) + strlen(command) + 2);
+				strcat(new_path,command);
+				strcat(new_path,"/");
+
+				/* Switch to the inputted directory*/
+				err = chdir(new_path);
+				if (err < 0)
+					nwrite = write(client.fd, "550\r\n", strlen("550\r\n"));
+				else
+					nwrite = write(client.fd, "250\r\n", strlen("250\r\n"));
+
 			    if (nwrite < 0)
-				    error("Error on writing CWD success status to client");
+				    error("Error on writing CWD status to client");
 			}
 
 			/* Client activates Active mode FTP by issuing the PORT command with the PORT
@@ -411,6 +442,37 @@ ftp_thread(void * args)
 				active = 1;
 			}
 
+			else if (strcmp(command,"TYPE") == 0)
+			{
+				#ifdef DEBUG
+				printf("Client issued command TYPE!\n");
+				fflush(stdout);
+				#endif
+
+				/* Get the type of change to the binary flag */
+				command = strtok(NULL, " ");
+
+				/* ASCII Type */
+				if (strcmp(command,"A") == 0)
+				{
+					binary_flag = 0;
+					/* Send successful binary flag update status to client */
+					nwrite = write(client.fd, "200 Entering ASCII mode\r\n", strlen("200 Entering ASCII mode\r\n"));
+			    	if (nwrite < 0)
+				   		error("Error on writing binary type success status to client");
+				}
+				/* Binary type */
+				else
+				{
+					binary_flag = 1;
+					/* Send successful binary flag update status to client */
+					nwrite = write(client.fd, "200 Entering binary mode\r\n", strlen("200 Entering binary mode\r\n"));
+			    	if (nwrite < 0)
+				   		error("Error on writing binary type success status to client");
+				}
+
+			}
+
 			/* Client command asking to recieve a list of contents of the current working directory
 				of the server executable */
 			else if (strcmp(command, "LIST") == 0)
@@ -421,7 +483,7 @@ ftp_thread(void * args)
 				#endif
 
 				/* Get the contents of the current working directory */
-				char * directory_list = LIST(getenv("PWD"));
+				char * directory_list = LIST(new_path);
 
 				/* Format and send the status message to the client, along with the contents
 					of the current working directory */
@@ -561,7 +623,7 @@ ftp_thread(void * args)
 
 					/* Call the RETR command, and if we encounter an error during data transfer, we 
 						inform the client */
-					err = RETR(file_fd, client_data_fd);
+					err = RETR(file_fd, client_data_fd, binary_flag);
 					if (err < 0)
 						nwrite = write(client.fd, "451 Local error in file processing\r\n", sizeof("451 Local error in file processing\r\n"));
 					else
@@ -616,7 +678,7 @@ ftp_thread(void * args)
 
 					/* After obtaining the active client connection, we call the RETR function to 
 						pass the bytes of the file to the client */
-					err = RETR(file_fd, data_fd);
+					err = RETR(file_fd, data_fd, binary_flag);
 					if (err < 0)
 						nwrite = write(client.fd, "451 Local error in file processing\r\n", sizeof("451 Local error in file processing\r\n"));
 					else
@@ -706,7 +768,7 @@ ftp_thread(void * args)
 
 					/* Call the STOR command, and if we encounter an error during data transfer, we 
 						inform the client */
-					err = STOR(file_fd, client_data_fd);
+					err = STOR(file_fd, client_data_fd,binary_flag);
 					if (err < 0)
 						nwrite = write(client.fd, "451 Local error in file processing\r\n", sizeof("451 Local error in file processing\r\n"));
 					else
@@ -761,7 +823,7 @@ ftp_thread(void * args)
 
 					/* After obtaining the active client connection, we call the STOR function to 
 						write the bytes of the client connection into the file */
-					err = STOR(file_fd, data_fd);
+					err = STOR(file_fd, data_fd,binary_flag);
 					if (err < 0)
 						nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
 					else
@@ -821,7 +883,7 @@ ftp_thread(void * args)
 
 					/* Using append mode, we again call the STOR command, and if we encounter an error during data transfer, we 
 						inform the client */
-					err = STOR(file_fd, client_data_fd);
+					err = STOR(file_fd, client_data_fd, binary_flag);
 					if (err < 0)
 						nwrite = write(client.fd, "451 Local error in file processing\r\n", sizeof("451 Local error in file processing\r\n"));
 					else
@@ -876,7 +938,7 @@ ftp_thread(void * args)
 
 					/* After obtaining the active client connection, we call the STOR function with our
 						file descriptor in 'append' mode to write the bytes of the client connection into the file */
-					err = STOR(file_fd, data_fd);
+					err = STOR(file_fd, data_fd, binary_flag);
 					if (err < 0)
 						nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
 					else
@@ -958,6 +1020,8 @@ ftp_thread(void * args)
 		#endif
 
 		/* Deallocate certain buffers */
+		free(new_path);
+		new_path = NULL;
 		free(PORT);
 		PORT = NULL;
 		free(local_ip_address);
@@ -1017,14 +1081,11 @@ LIST(char * dir_name)
 			full_list = realloc(full_list, max_size);
 		}
 
-		strcat(full_list, " ");
 		strcat(full_list, cur_dir_entry->d_name);
+		strcat(full_list, "\r\n");
 		cur_dir_entry = readdir(d);
 	}
 	closedir(d);
-
-	// At the end, append a new line
-	strcat(full_list, "\n");
 
 	/* Return the directory contents */
 	return full_list;
@@ -1118,57 +1179,124 @@ initiate_server(long port)
 /* Helper function to store a file; it receives bytes from the data file descriptor argument,
 	and writes the bytes into the file descriptor */
 int
-STOR(int file_fd, int data_fd)
+STOR(int file_fd, int data_fd, int binary_flag)
 {
 	/* Instantiate buffer for holding partial contents of read input */
 	ssize_t nread,nwrite;
-	char buf[4096];
-	char * buf_ptr = buf;
-	memset(buf_ptr, 0, sizeof buf);
+	int current_length = 4098;
+	char * buf_ptr = calloc(current_length,1);
 
-	/* Read the inputted bytes and write them to the file, while
-		some input is still given */
-	while ( (nread = read(data_fd, buf_ptr, sizeof buf)) > 0)
+	if (!binary_flag)
 	{
-		nwrite = write(file_fd, buf_ptr, nread);
-		if (nwrite < 0)
+		FILE * data_stream = fdopen(data_fd,"r+");
+		if (!data_stream)
 			return -1;
-		memset(buf_ptr, 0, sizeof buf);
+
+		/* ASCII Mode - read the file's contents line by line, replacing new line feeds 
+			with a \r\n */
+		while ( (current_length = readline(data_stream,buf_ptr,current_length)) != -1)
+		{
+
+			char * read_content = calloc(current_length+2,1);
+			sprintf(read_content,"%s\r\n",buf_ptr);
+			printf("Read: %s",read_content);
+			fflush(stdout);
+
+			nwrite = write(file_fd, read_content, strlen(read_content));
+			if (nwrite < 0)
+				return -1;
+
+			free(read_content);
+			read_content = NULL;
+			memset(buf_ptr, 0, strlen(buf_ptr));
+		}
+
+		return 0;
 	}
 
-	if (nread < 0)
+	if (binary_flag)
 	{
-		return -1;
+		/* Read the inputted bytes and write them to the file, while
+			some input is still given */
+		while ( (nread = read(data_fd, buf_ptr, strlen(buf_ptr))) > 0)
+		{
+			nwrite = write(file_fd, buf_ptr, nread);
+			if (nwrite < 0)
+				return -1;
+			memset(buf_ptr, 0, strlen(buf_ptr));
+		}
+
+		if (nread < 0)
+		{
+			return -1;
+		}
+		else
+			return 0;
 	}
-	else
-		return 0;
+
+	free(buf_ptr);
+	buf_ptr = NULL;
+	return 0;
 }
 
 /* Command to obtain bytes from the file descriptor, and write it into the data descriptor. 
 	Used in conjunction with a client request to get a file */
 int 
-RETR(int file_fd, int data_fd)
+RETR(int file_fd, int data_fd, int binary_flag)
 {
-	/* Instantiate buffer for holding partial contents of file */
+	/* Instantiate buffer for holding partial contents of read input */
 	ssize_t nread,nwrite;
-	char buf[4096];
-	char * buf_ptr = buf;
-	memset(buf_ptr, 0, sizeof buf);
+	int current_length = 4098;
+	char * buf_ptr = calloc(current_length,1);
 
-	/* Read contents of the file and write them to the data file descriptor, while
-		some content still exists */
-	while ( (nread = read(file_fd, buf_ptr, sizeof buf)) > 0)
+	if (!binary_flag)
 	{
-		nwrite = write(data_fd, buf_ptr, nread);
-		if (nwrite < 0)
+		FILE * file_stream = fdopen(file_fd,"r+");
+		if (!file_stream)
 			return -1;
-		memset(buf_ptr, 0, sizeof buf);
+
+		/* ASCII Mode - read the file's contents line by line, replacing new line feeds 
+			with a \r\n */
+		while ( (current_length = readline(file_stream,buf_ptr,current_length)) != -1)
+		{
+			char * read_content = calloc(current_length+2,1);
+			sprintf(read_content,"%s\r\n",buf_ptr);
+			printf("Read: %s",read_content);
+			fflush(stdout);
+
+			nwrite = write(data_fd, read_content, strlen(read_content));
+			if (nwrite < 0)
+				return -1;
+
+			free(read_content);
+			read_content = NULL;
+			memset(buf_ptr, 0, strlen(buf_ptr));
+		}
+
+		return 0;
 	}
 
-	if (nread < 0)
-		return -1;
-	else
-		return 0;	
+	if (binary_flag)
+	{
+		/* Read contents of the file and write them to the data file descriptor, while
+			some content still exists */
+		while ( (nread = read(file_fd, buf_ptr, strlen(buf_ptr)) > 0))
+		{
+			nwrite = write(data_fd, buf_ptr, nread);
+			if (nwrite < 0)
+				return -1;
+			memset(buf_ptr, 0, strlen(buf_ptr));
+		}
+
+		if (nread < 0)
+			return -1;
+		else
+			return 0;
+	}	
+
+	free(buf_ptr);
+	buf_ptr = NULL;
+	return 0;
 }
 
 /* Generates a random port number that is usable by user applications.
@@ -1262,29 +1390,44 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
     }
 
     if (ipv4)
+    {
     	complete_address_buffer = calloc(INET_ADDRSTRLEN+15,1);
+
+    	strcat(complete_address_buffer, "(");
+    	strcat(complete_address_buffer,buf_ptr);
+    	strcat(complete_address_buffer,",");
+
+    	/* Manipulate the port number to split it into upper bits and lower bits */
+    	unsigned int lower_bits = port & 0xFF;
+    	char * lower_bits_string = calloc(4,1);
+    	sprintf(lower_bits_string,"%d",lower_bits);
+
+    	unsigned int higher_bits = port & 0xFF00;
+    	higher_bits = higher_bits >> 8;
+    	char * higher_bits_string = calloc(4,1);
+    	sprintf(higher_bits_string,"%d",higher_bits);
+
+  		strcat(complete_address_buffer,higher_bits_string);
+    	strcat(complete_address_buffer,",");
+    	strcat(complete_address_buffer,lower_bits_string);
+    	strcat(complete_address_buffer,")");
+    	strcat(complete_address_buffer,"\0");
+    }
    	else
+   	{
    		complete_address_buffer = calloc(INET6_ADDRSTRLEN+15,1);
 
-    strcat(complete_address_buffer, "(");
-    strcat(complete_address_buffer,buf_ptr);
-    strcat(complete_address_buffer,",");
+   		strcat(complete_address_buffer, "(");
+   		strcat(complete_address_buffer,"|||");
 
-    /* Manipulate the port number to split it into upper bits and lower bits */
-    unsigned int lower_bits = port & 0xFF;
-    char * lower_bits_string = calloc(4,1);
-    sprintf(lower_bits_string,"%d",lower_bits);
+    	char * port_string = calloc(6,1);
+    	sprintf(port_string,"%d",port);
+    	strcat(complete_address_buffer,port_string);
 
-    unsigned int higher_bits = port & 0xFF00;
-    higher_bits = higher_bits >> 8;
-    char * higher_bits_string = calloc(4,1);
-    sprintf(higher_bits_string,"%d",higher_bits);
-
-  	strcat(complete_address_buffer,higher_bits_string);
-    strcat(complete_address_buffer,",");
-    strcat(complete_address_buffer,lower_bits_string);
-    strcat(complete_address_buffer,")");
-    strcat(complete_address_buffer,"\0");
+    	strcat(complete_address_buffer,"|)");
+    	strcat(complete_address_buffer,"\0");
+    	free(port_string);
+   	}
 
     /* Deallocate resources, and return the formatted IP Address and Port */
     freeifaddrs(ifAddrStruct);
@@ -1355,4 +1498,32 @@ get_active_client_connection(const char * ip_address, const char * port)
 
 	/* Return the obtained socket file descriptor corresponding to our active client connection */
 	return fd;
+}
+
+/* Reads a line from the inputted file and outputs the contents into the buffer */
+int readline(FILE *f, char *buffer, int len)
+{
+  	int counter = 0;
+  	int new_length = len;
+
+  	int c = fgetc(f);
+  	while ( !((feof(f)) || (c == '\r') || (c == '\n')) )
+  	{
+  		buffer[counter] = c; 
+
+  		if ( (counter + 1) > len)
+  		{
+  			buffer = realloc(buffer, counter + 4096);
+  			new_length = counter + 4096;
+  		}
+  		counter++;
+  		c = fgetc(f);
+  	}
+
+  	if (feof(f))
+  		return -1;
+  	else
+  	{
+  		return new_length;
+  	}   
 }

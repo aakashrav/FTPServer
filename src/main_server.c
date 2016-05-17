@@ -7,7 +7,7 @@ int quit=0;
 void 
 usage()
 {
-	printf("/ftp_server <port>");
+	printf("Usage: /sftp2_server <port>\n");
 	fflush(stdout);
 }
 

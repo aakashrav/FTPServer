@@ -1181,13 +1181,14 @@ initiate_server(long port)
 int
 STOR(int file_fd, int data_fd, int binary_flag)
 {
-	/* Instantiate buffer for holding partial contents of read input */
-	ssize_t nread,nwrite;
-	int current_length = 4098;
-	char * buf_ptr = calloc(current_length,1);
+	ssize_t nwrite;
 
 	if (!binary_flag)
 	{
+		/* Instantiate buffer for holding partial contents of read input */
+		int current_length = 4098;
+		char * buf_ptr = calloc(current_length,1);
+
 		FILE * data_stream = fdopen(data_fd,"r+");
 		if (!data_stream)
 			return -1;
@@ -1199,8 +1200,6 @@ STOR(int file_fd, int data_fd, int binary_flag)
 
 			char * read_content = calloc(current_length+2,1);
 			sprintf(read_content,"%s\r\n",buf_ptr);
-			printf("Read: %s",read_content);
-			fflush(stdout);
 
 			nwrite = write(file_fd, read_content, strlen(read_content));
 			if (nwrite < 0)
@@ -1210,32 +1209,54 @@ STOR(int file_fd, int data_fd, int binary_flag)
 			read_content = NULL;
 			memset(buf_ptr, 0, strlen(buf_ptr));
 		}
+		
+		/* Make one last write to flush all residual data */
+		char * read_content = calloc(current_length+2,1);
+		sprintf(read_content,"%s\r\n",buf_ptr);
+		nwrite = write(file_fd, read_content, strlen(read_content));
+		if (nwrite < 0)
+			return -1;
+		free(read_content);
+		read_content = NULL;
 
-		return 0;
+		fclose(data_stream);
+		free(buf_ptr);
+		buf_ptr = NULL;
 	}
 
 	if (binary_flag)
 	{
-		/* Read the inputted bytes and write them to the file, while
-			some input is still given */
-		while ( (nread = read(data_fd, buf_ptr, strlen(buf_ptr))) > 0)
-		{
-			nwrite = write(file_fd, buf_ptr, nread);
-			if (nwrite < 0)
-				return -1;
-			memset(buf_ptr, 0, strlen(buf_ptr));
-		}
+		/* File handler and variable to hold the contents */
+		FILE * data_stream;
+		char * contents;
+		int file_size = 0;
 
-		if (nread < 0)
-		{
+		// Open the file stream in read binary mode.
+		data_stream = fdopen(data_fd, "rb");
+
+		// Determine the file size
+		fseek(data_stream, 0L, SEEK_END);
+		file_size = ftell(data_stream);
+		fseek(data_stream, 0L, SEEK_SET);
+
+		// Allocate memory for the file's contents
+		contents = malloc(file_size+1);
+
+		//Read the file, and dump the content into the variable 'contents'
+		size_t size=fread(contents,1,file_size,data_stream);
+		contents[size]=0; // Add terminating zero.
+
+		// Write the file's contents
+		nwrite = write(file_fd, contents, size);
+		if (nwrite < 0)
 			return -1;
-		}
-		else
-			return 0;
+
+		// Clean up
+		fclose(data_stream); 
+		free(contents);
+		contents=NULL;
 	}
 
-	free(buf_ptr);
-	buf_ptr = NULL;
 	return 0;
 }
 
@@ -1244,14 +1265,15 @@ STOR(int file_fd, int data_fd, int binary_flag)
 int 
 RETR(int file_fd, int data_fd, int binary_flag)
 {
-	/* Instantiate buffer for holding partial contents of read input */
-	ssize_t nread,nwrite;
-	int current_length = 4098;
-	char * buf_ptr = calloc(current_length,1);
+	ssize_t nwrite;
 
 	if (!binary_flag)
 	{
-		FILE * file_stream = fdopen(file_fd,"r+");
+		/* Instantiate buffer for holding partial contents of read input */
+		int current_length = 4096;
+		char * buf_ptr = calloc(current_length,1);
+
+		FILE * file_stream = fdopen(file_fd,"r");
 		if (!file_stream)
 			return -1;
 
@@ -1261,8 +1283,6 @@ RETR(int file_fd, int data_fd, int binary_flag)
 		{
 			char * read_content = calloc(current_length+2,1);
 			sprintf(read_content,"%s\r\n",buf_ptr);
-			printf("Read: %s",read_content);
-			fflush(stdout);
 
 			nwrite = write(data_fd, read_content, strlen(read_content));
 			if (nwrite < 0)
@@ -1273,29 +1293,53 @@ RETR(int file_fd, int data_fd, int binary_flag)
 			memset(buf_ptr, 0, strlen(buf_ptr));
 		}
 
-		return 0;
+		/* Make one last write to flush all residual data */
+		char * read_content = calloc(current_length+2,1);
+		sprintf(read_content,"%s\r\n",buf_ptr);
+		nwrite = write(data_fd, read_content, strlen(read_content));
+		if (nwrite < 0)
+			return -1;
+		free(read_content);
+		read_content = NULL;
+
+		fclose(file_stream);
+		free(buf_ptr);
+		buf_ptr = NULL;
 	}
 
 	if (binary_flag)
 	{
-		/* Read contents of the file and write them to the data file descriptor, while
-			some content still exists */
-		while ( (nread = read(file_fd, buf_ptr, strlen(buf_ptr)) > 0))
-		{
-			nwrite = write(data_fd, buf_ptr, nread);
-			if (nwrite < 0)
-				return -1;
-			memset(buf_ptr, 0, strlen(buf_ptr));
-		}
+		/* File handler and variable to hold the contents */
+		FILE * file_stream;
+		char * contents;
+		int file_size = 0;
 
-		if (nread < 0)
+		// Open the file stream in read binary mode.
+		file_stream = fdopen(file_fd, "rb");
+
+		// Determine the file size
+		fseek(file_stream, 0L, SEEK_END);
+		file_size = ftell(file_stream);
+		fseek(file_stream, 0L, SEEK_SET);
+
+		// Allocate memory for the file's contents
+		contents = malloc(file_size+1);
+
+		//Read the file, and dump the content into the variable 'contents'
+		size_t size=fread(contents,1,file_size,file_stream);
+		contents[size]=0; // Add terminating zero.
+
+		// Write the file's contents to the client
+		nwrite = write(data_fd, contents, size);
+		if (nwrite < 0)
 			return -1;
-		else
-			return 0;
+
+		// Clean up
+		fclose(file_stream); 
+		free(contents);
+		contents=NULL;
 	}	
 
-	free(buf_ptr);
-	buf_ptr = NULL;
 	return 0;
 }
 

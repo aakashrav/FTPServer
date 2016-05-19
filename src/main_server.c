@@ -32,12 +32,12 @@ main(int argc, char * argv[])
 	// Register our signal handler for gracefully terminating the server
 	if (signal(SIGUSR1, handler) == SIG_ERR)
 	{
-		error("Error registering signal handler\n");
+		error("Error registering signal handler for SIGUSR1.\n");
 	}
 
 	if (signal(SIGUSR2, handler) == SIG_ERR)
 	{
-		error("Error registering signal handler for SIGUSR2\n");
+		error("Error registering signal handler for SIGUSR2.\n");
 	}
 
 	// Obtain the port that the server will run on 
@@ -94,7 +94,7 @@ main(int argc, char * argv[])
             if (client_fd < 0)
             {
             	destroy();
-            	error("Error on accepting client connection");
+            	error("Error on accepting client connection in main server.\n");
             }
 
 			/* Lock the job queue mutex */

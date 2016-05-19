@@ -21,21 +21,21 @@ init()
 
 	job_queue_lock = calloc(1, sizeof(pthread_mutex_t));
 	if (job_queue_lock == NULL)
-		error("Error on allocaitng job queue lock");
+		error("Error on allocaitng job queue lock\n");
 	err = pthread_mutex_init(job_queue_lock, NULL);
 	if (err != 0)
-		error("Error on initializing job queue mutex");
+		error("Error on initializing job queue mutex\n");
 
 	job_available = calloc(1,sizeof(pthread_cond_t));
 	if (job_available == NULL)
-		error("Error on allocating job available condition!");
+		error("Error on allocating job available condition!\n");
 	err = pthread_cond_init(job_available, NULL);
 	if (err != 0)
-		error("Error on initializing job_available condition");
+		error("Error on initializing job_available condition\n");
 
 	head = calloc(1, sizeof(struct job));
 	if (head == NULL)
-		error("Error on allocating job queue");
+		error("Error on allocating job queue\n");
 
 	return 0;
 }
@@ -134,7 +134,7 @@ ftp_thread(void * args)
 
 		if (err != 0)
 		{
-			error("Error on locking job queue thread");
+			error("Error on locking job queue thread\n");
 		}
 
 		// Wait while there are no jobs available
@@ -153,7 +153,7 @@ ftp_thread(void * args)
 		err = pthread_mutex_unlock(job_queue_lock);
 		if (err != 0)
 		{
-			error("Error unlocking job queue");
+			error("Error unlocking job queue\n");
 		}
 
 		/*
@@ -164,7 +164,7 @@ ftp_thread(void * args)
 		// Send a welcome message to the client
 		nwrite = write(client.fd, "220 CoolFTPServer\r\n",strlen("200 CoolFTPServer\r\n"));
 		if (nwrite < 0)
-			error("Error on writing initial connection success status to client");
+			error("Error on writing initial connection success status to client\n");
 
 		// Initialize and set important connection variables 
 		char buf[4096];
@@ -220,7 +220,7 @@ ftp_thread(void * args)
 				// Ask the client for his or her password.
 				nwrite = write(client.fd, "331 Password required for USER\r\n", strlen("331 Password required for USER\r\n"));
 				if (nwrite < 0)
-					error("Error on accepting username");
+					error("Error on accepting username\n");
 			}
 
 			/* PASS authentication command. We will use anonymous FTP, so this command is simply for completeness */
@@ -229,7 +229,7 @@ ftp_thread(void * args)
 				// We implement anonymous FTP, so any password is accepted without actually verifying it.
 				nwrite = write(client.fd, "230 You are now logged in.\r\n", strlen("230 You are now logged in.\r\n"));
 				if (nwrite < 0)
-					error("Error on accepting user password");
+					error("Error on accepting user password\n");
 			}
 
 			/* SYST command, send details about the FTP's ambient operating system */
@@ -239,7 +239,7 @@ ftp_thread(void * args)
 					TODO: What system should we return? */
 				nwrite = write(client.fd,"215 UNIX\r\n",strlen("215 UNIX\r\n"));
 				if (nwrite < 0)
-					error("Error on sending operating system type");
+					error("Error on sending operating system type\n");
 			}
   			
   			/* Send details about the features of the FTP Server implementation */
@@ -249,7 +249,7 @@ ftp_thread(void * args)
 					TODO: what are extensions? */
 				nwrite = write(client.fd,"211 Extensions supported\r\n",strlen("211-Extensions supported\r\n"));
 				if (nwrite < 0)
-					error("Error on sending extensions");
+					error("Error on sending extensions\n");
 			}
 
 			/* Client has exited FTP, we wish the client a goodbye and close this connection. */
@@ -257,7 +257,7 @@ ftp_thread(void * args)
 			{
 				nwrite = write(client.fd,"Goodbye.\r\n",strlen("Goodbye.\r\n"));
 				if (nwrite < 0)
-					error("Error on wishing client goodbye.");
+					error("Error on wishing client goodbye.\n");
 				close(client.fd);
 				break;
 			}
@@ -278,10 +278,10 @@ ftp_thread(void * args)
 				strcat(full_message, "\r\n");
 				nwrite = write(client.fd,full_message,strlen(full_message));
 				if (nwrite < 0)
-					error("Error on sending extensions");
+					error("Error on sending extensions\n");
 
 				#ifdef DEBUG
-				printf("Wrote working directory to client: %s",full_message);
+				printf("Wrote working directory to client: %s\n",full_message);
 				fflush(stdout);
 				#endif
 
@@ -302,14 +302,14 @@ ftp_thread(void * args)
 				/* Generate a socket that is listening on the randomly generated port */
 			 	data_fd = initiate_server(data_port);
 				if (data_fd < 0)
-					error("Error initiating passive FTP socket!");
+					error("Error initiating passive FTP socket!\n");
 
 				/* Get formatted IP Address + Port to send to the client.
 					We also specify that we require IPv4 only, since we are not in
 					extended passive mode. */
 			 	local_ip_address = get_formatted_local_ip_address(data_port,1);
 			 	if (local_ip_address == NULL)
-			 		error("Error on getting formatted local IP Address");
+			 		error("Error on getting formatted local IP Address\n");
 
 			 	/* Construct status message for client, informing him/her of the 
 			 		local endpoint of the passive FTP */
@@ -319,7 +319,7 @@ ftp_thread(void * args)
 				strcat(full_client_message, "\r\n");
 				nwrite = write(client.fd,full_client_message,strlen(full_client_message));
 				if (nwrite < 0)
-					error("Error on sending passive server mode");
+					error("Error on sending passive server mode\n");
 
 				/* We switch active mode off and deallocate resources */
 				active = 0;
@@ -341,12 +341,12 @@ ftp_thread(void * args)
 				/* Generate a socket that is listening on the randomly generated port */
 			 	data_fd = initiate_server(data_port);
 				if (data_fd < 0)
-					error("Error initiating passive FTP socket!");
+					error("Error initiating passive FTP socket!\n");
 
 				/* Get formatted IP Address + Port to send to the client. */
 			 	local_ip_address = get_formatted_local_ip_address(data_port,0);
 			 	if (local_ip_address == NULL)
-			 		error("Error on getting formatted local IP Address");
+			 		error("Error on getting formatted local IP Address\n");
 
 			 	/* Construct status message for client, informing him/her of the 
 			 		local endpoint of the passive FTP */
@@ -356,7 +356,7 @@ ftp_thread(void * args)
 				strcat(full_client_message, "\r\n");
 				nwrite = write(client.fd,full_client_message,strlen(full_client_message));
 				if (nwrite < 0)
-					error("Error on sending passive server mode");
+					error("Error on sending passive server mode\n");
 
 				/* We switch active mode off and deallocate resources */
 				active = 0;
@@ -392,7 +392,7 @@ ftp_thread(void * args)
 					nwrite = write(client.fd, "250\r\n", strlen("250\r\n"));
 
 			    if (nwrite < 0)
-				    error("Error on writing CWD status to client");
+				    error("Error on writing CWD status to client\n");
 			}
 
 			/* Client activates Active mode FTP by issuing the PORT command with the PORT
@@ -436,7 +436,7 @@ ftp_thread(void * args)
 				/* Send successful active FTP activation confirmation to client */
 				nwrite = write(client.fd, "200 Entering active mode\r\n", strlen("200 Entering active mode\r\n"));
 			    if (nwrite < 0)
-				    error("Error on writing active FTP success status to client");
+				    error("Error on writing active FTP success status to client\n");
 
 				/* Switch the active FTP flag on */
 				active = 1;
@@ -459,7 +459,7 @@ ftp_thread(void * args)
 					/* Send successful binary flag update status to client */
 					nwrite = write(client.fd, "200 Entering ASCII mode\r\n", strlen("200 Entering ASCII mode\r\n"));
 			    	if (nwrite < 0)
-				   		error("Error on writing binary type success status to client");
+				   		error("Error on writing binary type success status to client\n");
 				}
 				/* Binary type */
 				else
@@ -468,7 +468,7 @@ ftp_thread(void * args)
 					/* Send successful binary flag update status to client */
 					nwrite = write(client.fd, "200 Entering binary mode\r\n", strlen("200 Entering binary mode\r\n"));
 			    	if (nwrite < 0)
-				   		error("Error on writing binary type success status to client");
+				   		error("Error on writing binary type success status to client\n");
 				}
 
 			}
@@ -500,13 +500,13 @@ ftp_thread(void * args)
 					/* 'Accept' the incoming client connection to our established socket */
 					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
 					if (client_data_fd < 0)
-						error("Error on accepting passive client connection for data transfer during LIST");	
+						error("Error on accepting passive client connection for data transfer during LIST\n");	
 					else
 						nwrite = write(client.fd,"150 Opening ASCII mode data connection\r\n",strlen("150 Opening ASCII mode data connection\r\n"));
 
 					nwrite = write(client_data_fd, full_message, strlen(full_message));
 					if (nwrite < 0)
-						error("Error when sending directory contents to client in response to LIST command");
+						error("Error when sending directory contents to client in response to LIST command\n");
 
 
 					/* Close the socket descriptors that connect to the client.
@@ -559,7 +559,7 @@ ftp_thread(void * args)
 
 					nwrite = write(data_fd, full_message, strlen(full_message));
 					if (nwrite < 0)
-						error("Error when sending directory contents to client in response to LIST command");
+						error("Error when sending directory contents to client in response to LIST command.\n");
 
 					/* Close the associated file descriptors */
 					close(data_fd);
@@ -573,7 +573,7 @@ ftp_thread(void * args)
 
 				nwrite = write(client.fd,"226 Directory contents listed\r\n",strlen("226 Directory contents listed\r\n"));
 				if (nwrite < 0)
-					error("Error when writing LIST success status to client");
+					error("Error when writing LIST success status to client.\n");
 
 				/* Deallocate resources */
 				free(full_message);
@@ -599,7 +599,7 @@ ftp_thread(void * args)
 				{
 					nwrite = write(client.fd, "550 Error during file access \r\n", sizeof("550 Error during file access \r\n"));
 					if (nwrite < 0)
-						error("Error on communicating file access error code to client\n");
+						error("Error on communicating file access error code to client.\n");
 				}
 
 				// Inform the client that we are ready to transfer the requested file.
@@ -607,7 +607,7 @@ ftp_thread(void * args)
 				{
 					nwrite = write(client.fd, "150 Opening ASCII mode data connection\r\n", sizeof("150 Opening ASCII mode data connection\r\n"));
 					if (nwrite < 0)
-						error("Error on communicating ASCII mode file transfer information to client\n");
+						error("Error on communicating ASCII mode file transfer information to client.\n");
 				}
 
 				/* Handle the case where the client has currently chosen passive mode to be their
@@ -619,7 +619,7 @@ ftp_thread(void * args)
 					/* 'Accept' the incoming client connection to our established socket */
 					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
 					if (client_data_fd < 0)
-						error("Error on accepting passive client connection for data transfer during RETR");	
+						error("Error on accepting passive client connection for data transfer during RETR.\n");	
 
 					/* Call the RETR command, and if we encounter an error during data transfer, we 
 						inform the client */
@@ -656,7 +656,7 @@ ftp_thread(void * args)
 					{
 						nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
 						if (nwrite < 0)
-							error("Error on communicating data connection error to client\n");
+							error("Error on communicating data connection error to client.\n");
 						continue;	
 					}
 
@@ -720,7 +720,7 @@ ftp_thread(void * args)
 						/* Inform the client of the error during truncation */
 						nwrite = write(client.fd, "452 file unavailable\r\n", sizeof("452 file unavailable\r\n"));
 						if (nwrite < 0)
-							error("Error in communicating truncation error to the client\n");
+							error("Error in communicating truncation error to the client.\n");
 						continue;
 					}
 				}
@@ -743,7 +743,7 @@ ftp_thread(void * args)
 						/* Inform the client of the error */
 						nwrite = write(client.fd, "452 file unavailable\r\n", sizeof("452 file unavailable\r\n"));
 						if (nwrite < 0)
-							error("Error in communicating file concurrent access to the client\n");
+							error("Error in communicating file concurrent access to the client.\n");
 						continue;
 					}
 				}
@@ -751,7 +751,7 @@ ftp_thread(void * args)
 				/* Inform the client that we are ready to transfer the bytes to store a file */
 				nwrite = write(client.fd, "150 Opening ASCII mode data connection\r\n", sizeof("150 Opening ASCII mode data connection\r\n"));
 				if (nwrite < 0)
-					error("Error on communicating ASCII file transfer to client\n");
+					error("Error on communicating ASCII file transfer to client.\n");
 
 				/* Handle the case where the client has currently chosen passive mode to be their
 					desired form of data transfer */
@@ -762,7 +762,7 @@ ftp_thread(void * args)
 					/* 'Accept' the incoming client connection to our established socket */
 					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
 					if (client_data_fd < 0)
-						error("Error on accepting client channel for data transfer");
+						error("Error on accepting client channel for data transfer.\n");
 
 					/* Call the STOR command, and if we encounter an error during data transfer, we 
 						inform the client */
@@ -799,7 +799,7 @@ ftp_thread(void * args)
 					{
 						nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
 						if (nwrite < 0)
-							error("Error on communicating data connection error to client\n");
+							error("Error on communicating data connection error to client.\n");
 						continue;	
 					}
 
@@ -855,7 +855,7 @@ ftp_thread(void * args)
 				{
 					nwrite = write(client.fd, "452 file unavailable\r\n", sizeof("452 file unavailable\r\n"));
 					if (nwrite < 0)
-						error("Error on communicating file unavailable to client\n");
+						error("Error on communicating file unavailable to client.\n");
 				}
 
 				/* Else we inform client of successful opening of file for appending */
@@ -863,7 +863,7 @@ ftp_thread(void * args)
 				{
 					nwrite = write(client.fd, "150 Opening ASCII mode data connection\r\n", sizeof("150 Opening ASCII mode data connection\r\n"));
 					if (nwrite < 0)
-						error("Error on communicating APPE file opening success to client\n");
+						error("Error on communicating APPE file opening success to client.\n");
 				}
                 
                 /* Handle the case where the client has currently chosen passive mode to be their
@@ -875,7 +875,7 @@ ftp_thread(void * args)
 					/* 'Accept' the incoming client connection to our established socket */
 					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
 					if (client_data_fd < 0)
-						error("Error on accepting client channel for data transfer");
+						error("Error on accepting client channel for data transfer.\n");
 
 					/* Using append mode, we again call the STOR command, and if we encounter an error during data transfer, we 
 						inform the client */
@@ -912,7 +912,7 @@ ftp_thread(void * args)
 					{
 						nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
 						if (nwrite < 0)
-							error("Error on communicating data connection error to client\n");
+							error("Error on communicating data connection error to client.\n");
 						continue;	
 					}
 
@@ -999,7 +999,7 @@ ftp_thread(void * args)
 				/* Inform the client that the command he/she sent is not suppported by the server */
 				nwrite = write(client.fd, "500 Command not supported\r\n", strlen("500 Command not supported\r\n"));
 				if (nwrite < 0)
-					error("Error in informing client of unsupported command");
+					error("Error in informing client of unsupported command.\n");
 			}
 
 			/* Reset the buffer to receive the next command, removing any residual characters */
@@ -1133,18 +1133,18 @@ initiate_server(long port)
 			/* Generate a socket for the listening server */ 
 			fd = socket(AF_INET, SOCK_STREAM, 0);
 			if (fd == -1)
-				error("Error on socket");
+				error("Error on socket during initiate server.\n");
 
 			/* Bind the port to the resulting socket */
 			err = bind(fd, res->ai_addr, res->ai_addrlen);
 			if (err == -1)
-				error("Error on binding");
+				error("Error on binding during initiate server.\n");
 
 			/* Start 'listen'ing so that clients can start connecting to the endpoint
 				'accept'ing will be done in the next phase */
 			err = listen(fd, MAX_NUM_CONNECTED_CLIENTS);
 			if (err == -1)
-				error("Error on listen");
+				error("Error on listen during initiate server.\n");
 			break;
 		}
 
@@ -1153,15 +1153,15 @@ initiate_server(long port)
 		{
 			fd = socket(AF_INET6, SOCK_STREAM, 0);
 			if (fd == -1)
-				error("Error on socket");
+				error("Error on socket during initiate server.\n");
 
 			err = bind(fd, res->ai_addr, res->ai_addrlen);
 			if (err == -1)
-				error("Error on binding");
+				error("Error on binding during initiate server.\n");
 
 			err = listen(fd, MAX_NUM_CONNECTED_CLIENTS);
 			if (err == -1)
-				error("Error on listen");
+				error("Error on listen during initiate server.\n");
 			break;
 		}
 	}
@@ -1518,10 +1518,10 @@ get_active_client_connection(const char * ip_address, const char * port)
 	{
 		fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (fd == -1)
-			error("Error in IPV4 socket establishment in active client connection");
+			error("Error in IPV4 socket establishment in active client connection.\n");
 		err = connect(fd, res->ai_addr, res->ai_addrlen);
 		if (err < 0)
-			error("Error in 'connect'ing to the active client port with IPV4");
+			error("Error in 'connect'ing to the active client port with IPV4.\n");
 		
 	}
 
@@ -1530,10 +1530,10 @@ get_active_client_connection(const char * ip_address, const char * port)
 	{
 		fd = socket(AF_INET6, SOCK_STREAM, 0);
 		if (fd == -1)
-			error("Error in IPV6 socket establishment in active client connection");
+			error("Error in IPV6 socket establishment in active client connection.\n");
 		err = connect(fd, res->ai_addr, res->ai_addrlen);
 		if (err < 0)
-			error("Error in 'connect'ing to the active client port with IPV6");
+			error("Error in 'connect'ing to the active client port with IPV6.\n");
 	}
 
 	/* Return the obtained socket file descriptor corresponding to our active client connection */

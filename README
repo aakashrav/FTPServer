@@ -1,0 +1,3 @@
+An implementation of a standard FTP server built for UNIX systems, meant to be used with standard FTP Clients.
+
+Usage: ./ftp2_server <port>

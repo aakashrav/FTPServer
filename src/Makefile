@@ -4,15 +4,15 @@ CC=gcc
 CFLAGS=-c -Wall -I../include -MP -MMD
 EXECUTABLE_DIRECTORY=../bin
 
-all: sftp2_server
+all: ftp2_server
 
 .c.o:
 	$(CC) $(CFLAGS) $<
 
-sftp2_server: $(SERVER_OBJECTS)
+ftp2_server: $(SERVER_OBJECTS)
 	$(CC) -o $(EXECUTABLE_DIRECTORY)/$@ -pthread $(SERVER_OBJECTS)
 
 clean:
-	rm $(SERVER_OBJECTS)
-	rm $(SERVER_SOURCES:.c=.d)
-	rm $(EXECUTABLE_DIRECTORY)/sftp2_server
+	-rm $(SERVER_OBJECTS)
+	-rm $(SERVER_SOURCES:.c=.d)
+	-rm $(EXECUTABLE_DIRECTORY)/ftp2_server

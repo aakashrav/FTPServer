@@ -706,8 +706,6 @@ ftp_thread(void * args)
 				/* Declare the file descriptor corresponding to the new file */
 				int file_fd;
 
-				// TODO: HOW TO GET MODE
-
 				/* Erase the old contents of the file so that may append new client conntent */
 				err = truncate(filename, 0);
 
@@ -848,8 +846,6 @@ ftp_thread(void * args)
 
 				/* Declare the file descriptor corresponding to the new file */
 				int file_fd;
-
-				// TODO: HOW TO GET MODE
 
 				/* Open a new file descriptor to append to the file */
 				file_fd = open(filename, O_CREAT | O_APPEND, 0644);

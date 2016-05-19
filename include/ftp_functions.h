@@ -104,4 +104,3 @@ int
 readline(FILE *f, char *buffer, int len);
 
 #endif
-

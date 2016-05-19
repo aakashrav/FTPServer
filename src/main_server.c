@@ -1,8 +1,17 @@
 #include "ftp_functions.h"
 #include <getopt.h>
 #include <poll.h>
+#include <signal.h>
 
-int quit=0;
+// Volatile quit variable
+volatile sig_atomic_t QUIT_FLAG=0;
+
+
+// Safe signal handler
+void handler(int signal)
+{
+	QUIT_FLAG=1;
+}
 
 void 
 usage()
@@ -20,12 +29,25 @@ main(int argc, char * argv[])
 		exit(1);
 	}
 
-	// TODO: GETOPT THIS
+	// Register our signal handler for gracefully terminating the server
+	if (signal(SIGUSR1, handler) == SIG_ERR)
+	{
+		error("Error registering signal handler\n");
+	}
+
+	if (signal(SIGUSR2, handler) == SIG_ERR)
+	{
+		error("Error registering signal handler for SIGUSR2\n");
+	}
+
+	// Obtain the port that the server will run on 
 	long port = atol(argv[1]);
 	int err;
 
 	/* Initiate the server socket running at the specified port */
 	int server_fd = initiate_server(port);
+	if (server_fd < 0)
+		error("Error on initiating FTP server! Perhaps try a new port?\n");
 
 	/* Initialize the job queue and related resources */
 	init();
@@ -43,7 +65,7 @@ main(int argc, char * argv[])
 	struct pollfd server_poll_structure = {server_fd, POLLIN, 0};
 	fds[0] = server_poll_structure;
 
-	while(!quit)
+	while(!QUIT_FLAG)
 	{
 		#ifdef DEBUG
 		printf("Main server: About to call poll command!\n");

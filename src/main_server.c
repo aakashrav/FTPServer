@@ -1,7 +1,8 @@
-#include "ftp_functions.h"
 #include <getopt.h>
 #include <poll.h>
 #include <signal.h>
+#include "ftp_functions.h"
+#include "utils.h"
 
 // Volatile quit variable
 volatile sig_atomic_t QUIT_FLAG=0;
@@ -59,27 +60,21 @@ main(int argc, char * argv[])
 		pthread_create(&arr[i], NULL, ftp_thread, NULL);
 	}
 
-	/* Create a server polling architecture so that we don't waste system resources
-		on busy waits */
+	/* Create a server polling architecture so that we 
+		don't waste system resources on busy waits */
 	struct pollfd fds[1];
 	struct pollfd server_poll_structure = {server_fd, POLLIN, 0};
 	fds[0] = server_poll_structure;
 
 	while(!QUIT_FLAG)
 	{
-		#ifdef DEBUG
-		printf("Main server: About to call poll command!\n");
-		fflush(stdout);
-		#endif
+		print_debug("Main server: About to call poll command!\n");
 
 		err = poll(fds, 1, -1);
 		if (err == -1)
 			error("Error on poll command in the main server!\n");
 
-		#ifdef DEBUG
-		printf("Main server received connection and finished poll'ing!\n");
-		fflush(stdout);
-		#endif
+		print_debug("Main server received connection and finished poll'ing!\n");
 
 		struct sockaddr_storage client_addr;
 
@@ -90,11 +85,12 @@ main(int argc, char * argv[])
 		{
 			/* Accept the latest client connection */
 			socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
-			client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &len);
+			client_fd = accept(server_fd, (struct sockaddr *)&client_addr, 
+				&len);
             if (client_fd < 0)
             {
             	destroy();
-            	error("Error on accepting client connection in main server.\n");
+            	error("Error on accepting client connection in main.\n");
             }
 
 			/* Lock the job queue mutex */

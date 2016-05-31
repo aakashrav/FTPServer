@@ -1,4 +1,4 @@
-SERVER_SOURCES=main_server.c ftp_functions.c
+SERVER_SOURCES=main_server.c ftp_functions.c utils.c
 SERVER_OBJECTS=$(SERVER_SOURCES:.c=.o)
 CC=gcc
 CFLAGS=-c -Wall -I../include -MP -MMD

@@ -1,16 +1,5 @@
 #include "ftp_functions.h"
-
-/* Error function to exit gracefully */
-void
-error(const char * message)
-{
-	/* Print the error message */
-	perror(message);
-	/* Deallocate resources related to the thread pool and mutexes */
-	destroy();
-	free_jobs(head);
-	exit(1);
-}
+#include "utils.h"
 
 /* Initlialize mutexes, conditional variables, and job queue */
 int
@@ -19,109 +8,29 @@ init()
 	int err;
 	available_jobs = 0;
 
-	job_queue_lock = calloc(1, sizeof(pthread_mutex_t));
+	job_queue_lock = calloc(1, sizeof (pthread_mutex_t));
 	if (job_queue_lock == NULL)
 		error("Error on allocaitng job queue lock\n");
 	err = pthread_mutex_init(job_queue_lock, NULL);
 	if (err != 0)
 		error("Error on initializing job queue mutex\n");
 
-	job_available = calloc(1,sizeof(pthread_cond_t));
+	job_available = calloc(1, sizeof (pthread_cond_t));
 	if (job_available == NULL)
 		error("Error on allocating job available condition!\n");
 	err = pthread_cond_init(job_available, NULL);
 	if (err != 0)
 		error("Error on initializing job_available condition\n");
 
-	head = calloc(1, sizeof(struct job));
+	head = calloc(1, sizeof (struct job));
 	if (head == NULL)
 		error("Error on allocating job queue\n");
 
-	return 0;
+	return (0);
 }
 
-/* Destroy mutexes, conditional variables, and job queue */
-int
-destroy()
-{
-	pthread_mutex_destroy(job_queue_lock);
-	free(job_queue_lock);
-	job_queue_lock = NULL;
-
-	pthread_cond_destroy(job_available);
-	free(job_available);
-	job_available = NULL;
-
-	free_jobs(head);
-
-	return 0;
-}
-
-/* Enqueue a single job into the job queue */
-int
-enqueue(job_t *head, int fd, struct sockaddr_storage client_addr)
-{
-	job_t * jb = head;
-	while (jb->next != NULL)
-		jb= jb->next;
-
-	job_t * new_job = calloc(1, sizeof(struct job));
-	new_job->fd = fd;
-	new_job->client_addr = client_addr;
-	new_job->previous = jb;
-	new_job->next = NULL;
-	jb->next = new_job;
-
-	return 0;
-}
-
-/* Dequeue a single job from the job queue */
-job_t 
-dequeue(job_t *head)
-{
-	job_t return_job;
-	job_t * jb = head;
-	jb = jb->next;
-
-	if (jb != NULL)
-	{
-
-		job_t * nxt_job = jb->next;
-		jb->previous->next = nxt_job;
-		if (nxt_job != NULL)
-			nxt_job->previous = jb->previous;
-		
-		return_job.fd = jb->fd;
-		return_job.client_addr = jb->client_addr;
-		free(jb);
-		jb = NULL;
-	}
-	else
-	{
-		printf("No jobs available!\n");
-		fflush(stdout);
-		return_job.fd = -1;
-	}
-
-	return return_job;
-}
-
-/* Free all the remaining jobs in the queue, cleanup function */
-void 
-free_jobs(job_t * head)
-{
-	while (head!= NULL)
-	{
-		job_t * next = head->next;
-		free(head);
-		head = next;
-	}
-
-	// For extra safety, don't want double free problems later
-	head = NULL;
-}
-
-/* FTP_Thread - the core business logic that processes FTP commands and executes them. */
+/* FTP_Thread - the core business logic that processes FTP commands 
+	and executes them. */
 void *
 ftp_thread(void * args)
 {
@@ -157,876 +66,1137 @@ ftp_thread(void * args)
 		}
 
 		/*
-			Where the actual FTP processing takes place. We process client commands and
+			Where the actual FTP processing takes place. We 
+			process client commands and
 			respond with appropriate server actions.
 		*/
 		ssize_t nwrite, nread;
 		// Send a welcome message to the client
-		nwrite = write(client.fd, "220 CoolFTPServer\r\n",strlen("200 CoolFTPServer\r\n"));
+		nwrite = write(client.fd, "220 CoolFTPServer\r\n",
+			strlen("200 CoolFTPServer\r\n"));
 		if (nwrite < 0)
-			error("Error on writing initial connection success status to client\n");
+			error("Error on writing initial connection success status to \
+				client\n");
 
 		// Initialize and set important connection variables 
 		char buf[4096];
 		char * buf_ptr = buf;
-		memset(buf_ptr, 0, sizeof(buf));
+		memset(buf_ptr, 0, sizeof (buf));
 		char * PORT = NULL;
 
-		/* Initialize a few variables for *passive* data transfers; each one will have its own purpose. */
-		long data_port = -1; // Port to listen for connections on passive mode.
-		char * local_ip_address = NULL; // Formatted IP Address + Port to send to client during Passive data transfer
+		/* Initialize a few variables for *passive* data transfers;
+		 each one will have its own purpose. */
+		long data_port = -1; // Port to listen for connections in passive mode.
 		int data_fd = -1; // File descriptor for passive mode listening.
-		int client_data_fd = 0; // File descriptor for 'accept'ing client connection in passive mode.
+		/* File descriptor for 'accept'ing client connection 
+			in passive mode. */
+		int client_data_fd = 0; 
 
 		/* 
-			Keep a boolean that indicates whether the client is currently communicating via 
-			active or passive FTP.
+			Keep a boolean that indicates whether the client is currently 
+			communicating via active or passive FTP.
 			Default is active mode.
 		*/
 		int active = 1;
 
-		/* Keep track of whether the client has requested ASCII file transfer or
-			binary file transfer. At the beginning, we start with ASCII file transfer mode.
+		/* Keep track of whether the client has requested ASCII 
+			file transfer or binary file transfer. At the beginning, 
+			we start with ASCII file transfer mode.
 		*/
 		int binary_flag = 0;
 
-		/* A variable to keep track of the program's current working directory */
+		/* A variable to keep track of the program's current 
+			working directory */
 		char * new_path = calloc(strlen(getenv("PWD"))+1,1);
 		strcat(new_path,getenv("PWD"));
 		strcat(new_path,"/");
 
 		/* While the client is sending us a message, process the message.
-			TODO: Set a timeout alarm so that we aren't waiting too long on the client
+			TODO: Set a timeout alarm so that we aren't waiting too long 
+			on the client
 			to send a command 
 		*/
-		while ( (nread = read(client.fd, buf_ptr, sizeof(buf))) > 0)
+		while ( (nread = read(client.fd, buf_ptr, sizeof (buf) )) > 0)
 		{
-			#ifdef DEBUG
-			printf("Read command from client:%s\n",buf_ptr);
-			fflush(stdout);
-			#endif
-
-			// Remove extraneous characters that don't affect the actual command
+			/* Remove extraneous characters that don't 
+				affect the actual command */
 			buf[strcspn(buf_ptr, "\r\n")] = 0; 
 			// Obtain the command name
 			char * command = strtok(buf_ptr, " ");
             
-            /* Main business logic of the thread: Go through all the commands the FTP Server
+            /* Main business logic of the thread: Go through all the 
+            	commands the FTP Server
             	supports and execute the command which the client requested */
 
-			/* USER authentication command. We will use anonymous FTP, so this command is simply for completeness */
+			/* USER authentication command. We will use anonymous FTP, so this 
+				command is simply for completeness */
 			if (strcmp(command, "USER") == 0)
 			{
 				// Ask the client for his or her password.
-				nwrite = write(client.fd, "331 Password required for USER\r\n", strlen("331 Password required for USER\r\n"));
+				nwrite = write(client.fd, "331 Password required for USER\r\n",
+					strlen("331 Password required for USER\r\n"));
 				if (nwrite < 0)
 					error("Error on accepting username\n");
 			}
 
-			/* PASS authentication command. We will use anonymous FTP, so this command is simply for completeness */
+			/* PASS authentication command. We will use anonymous FTP, so 
+				this command is simply for completeness */
 			else if(strcmp(command,"PASS") == 0)
 			{
-				// We implement anonymous FTP, so any password is accepted without actually verifying it.
-				nwrite = write(client.fd, "230 You are now logged in.\r\n", strlen("230 You are now logged in.\r\n"));
+				/* We implement anonymous FTP, so any password is accepted 
+					without actually verifying it. */
+				nwrite = write(client.fd, "230 You are now logged in.\r\n",
+					strlen("230 You are now logged in.\r\n"));
 				if (nwrite < 0)
 					error("Error on accepting user password\n");
 			}
 
-			/* SYST command, send details about the FTP's ambient operating system */
+			/* SYST command, send details about the FTP's 
+				ambient operating system */
 			else if(strcmp(command,"SYST") == 0)
 			{	
-				/* Inform the client of the operating system that the server runs on
-					TODO: What system should we return? */
-				nwrite = write(client.fd,"215 UNIX\r\n",strlen("215 UNIX\r\n"));
+				/* Inform the client of the operating system 
+					that the server runs on */
+				nwrite = write(client.fd,"215 UNIX\r\n",
+					strlen("215 UNIX\r\n"));
 				if (nwrite < 0)
 					error("Error on sending operating system type\n");
 			}
   			
-  			/* Send details about the features of the FTP Server implementation */
+  			/* Send details about the features of the FTP Server 
+  				implementation */
   			else if (strcmp(command,"FEAT") == 0)
 			{
-				/* Inform the client of the FTP Extensions that our server supports
-					TODO: what are extensions? */
-				nwrite = write(client.fd,"211 Extensions supported\r\n",strlen("211-Extensions supported\r\n"));
+				/* Inform the client of the 
+					FTP Extensions that our server supports */
+				nwrite = write(client.fd,"211 Extensions supported\r\n",
+					strlen("211-Extensions supported\r\n"));
 				if (nwrite < 0)
 					error("Error on sending extensions\n");
 			}
 
-			/* Client has exited FTP, we wish the client a goodbye and close this connection. */
-  			else if ( (strcmp(command,"QUIT") == 0) || (strcmp(command,"quit") == 0) )  
+			/* Send client details about the current working directory of 
+				the server executable */
+			else if(strcmp(command,"PWD")==0)
 			{
-				nwrite = write(client.fd,"Goodbye.\r\n",strlen("Goodbye.\r\n"));
+				PWD_HANDLER(client.fd,new_path);
+			}
+
+			/* Server recieves command from client directing its 
+				switch to Passive mode FTP with *IPV4 Only */
+			else if(strcmp(command, "PASV") == 0)
+			{
+				PASV_HANDLER(client.fd,&active,&data_port,&data_fd);
+			}
+
+			/* Server recieves command from client directing its switch to 
+				Passive mode FTP with *Both IPv4 and IPv6* */
+			else if(strcmp(command, "EPSV") == 0)
+			{
+				EPSV_HANDLER(client.fd,&active,&data_port,&data_fd);
+			}
+
+			/* Command to change the working directory of 
+				the server executable */
+			else if (strcmp(command, "CWD") == 0)
+			{
+				CWD_HANDLER(command,client.fd,new_path);
+			}
+
+			/* Client activates Active mode FTP by issuing 
+				the PORT command with the PORT
+				that it will listen to for future data transfer connections */
+			else if (strcmp(command, "PORT")==0)
+			{
+				PORT_HANDLER(command,client.fd,PORT,&active);
+			}
+
+			else if (strcmp(command,"TYPE") == 0)
+			{
+				TYPE_HANDLER(command,client.fd,&binary_flag);
+			}
+
+			/* Client command asking to recieve a list of 
+				contents of the current working directory
+				of the server executable */
+			else if (strcmp(command, "LIST") == 0)
+			{
+				LIST_HANDLER(command, client.fd, new_path,
+					active, PORT, data_fd, client.client_addr,client_data_fd);
+			}
+
+			/* Client has issued a command to get a certain file */
+			else if (strcmp(command, "RETR") == 0)
+			{
+				RETR_HANDLER(command, client.fd,
+					binary_flag, active, PORT,
+					data_fd, client.client_addr);
+				
+			}
+
+			/* The client has issued a command requesting to 
+				store a file on the server,
+				in the current working directory of the program */
+			else if (strcmp(command,"STOR") == 0)
+			{
+				STOR_HANDLER(command, client.fd,
+					binary_flag, active, PORT,
+					data_fd, client.client_addr, client_data_fd);
+			}
+
+			else if (strcmp(command,"APPE") == 0)
+			{
+				APPE_HANDLER(command,client.fd,
+					binary_flag, active, PORT,
+					data_fd, client.client_addr);
+			}
+			
+			/* Client has issued the command to remove a specified directory */
+			else if (strcmp(command,"RMD") == 0)
+			{
+				RMD_HANDLER(client.fd);
+			}
+
+			/* Client has issued the command to make a new directory */
+			else if (strcmp(command, "MKD") == 0)
+			{
+				MKD_HANDLER(client.fd);
+			}
+
+			/* Client has exited FTP, we wish the client a goodbye
+				and close this connection. */
+  			else if ( (strcmp(command,"QUIT") == 0) || \
+  				(strcmp(command,"quit") == 0) )  
+			{
+				nwrite = write(client.fd,"Goodbye.\r\n",
+					strlen("Goodbye.\r\n"));
 				if (nwrite < 0)
 					error("Error on wishing client goodbye.\n");
 				close(client.fd);
 				break;
 			}
 
-			/* Send client details about the current working directory of the server executable */
-			else if(strcmp(command,"PWD")==0)
-			{
-				/* Print the current working directory of the server, along with the associated
-					status codes */
-				char * working_directory = new_path;
-				printf("%s\n",new_path);
-				fflush(stdout);
-				char * full_message = calloc(strlen("257 \r\n") + strlen(working_directory)+2,1);
-				strcat(full_message,"257 ");
-				strcat(full_message,"\"");
-				strcat(full_message, working_directory);
-				strcat(full_message,"\"");
-				strcat(full_message, "\r\n");
-				nwrite = write(client.fd,full_message,strlen(full_message));
-				if (nwrite < 0)
-					error("Error on sending extensions\n");
-
-				#ifdef DEBUG
-				printf("Wrote working directory to client: %s\n",full_message);
-				fflush(stdout);
-				#endif
-
-				free(full_message);
-			}
-
-			/* Server recieves command from client directing its switch to Passive mode FTP with *IPV4 Only*/
-			else if(strcmp(command, "PASV") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client issued command PASV!\n");
-				fflush(stdout);
-				#endif
-
-				/* Choose a random port to listen for data connections */
-				data_port = get_random_port();
-
-				/* Generate a socket that is listening on the randomly generated port */
-			 	data_fd = initiate_server(data_port);
-				if (data_fd < 0)
-					error("Error initiating passive FTP socket!\n");
-
-				/* Get formatted IP Address + Port to send to the client.
-					We also specify that we require IPv4 only, since we are not in
-					extended passive mode. */
-			 	local_ip_address = get_formatted_local_ip_address(data_port,1);
-			 	if (local_ip_address == NULL)
-			 		error("Error on getting formatted local IP Address\n");
-
-			 	/* Construct status message for client, informing him/her of the 
-			 		local endpoint of the passive FTP */
-			 	char * full_client_message = (char *) calloc(strlen("227 Entering passive mode. \r\n") + strlen(local_ip_address),1);
-				strcat(full_client_message, "227 Entering passive mode. ");
-				strcat(full_client_message, local_ip_address);
-				strcat(full_client_message, "\r\n");
-				nwrite = write(client.fd,full_client_message,strlen(full_client_message));
-				if (nwrite < 0)
-					error("Error on sending passive server mode\n");
-
-				/* We switch active mode off and deallocate resources */
-				active = 0;
-				free(full_client_message);
-				full_client_message = NULL;
-			}
-
-			/* Server recieves command from client directing its switch to Passive mode FTP with *Both IPv4 and IPv6* */
-			else if(strcmp(command, "EPSV") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client issued command EPSV!\n");
-				fflush(stdout);
-				#endif
-
-				/* Choose a random port to listen for data connections */
-				data_port = get_random_port();
-
-				/* Generate a socket that is listening on the randomly generated port */
-			 	data_fd = initiate_server(data_port);
-				if (data_fd < 0)
-					error("Error initiating passive FTP socket!\n");
-
-				/* Get formatted IP Address + Port to send to the client. */
-			 	local_ip_address = get_formatted_local_ip_address(data_port,0);
-			 	if (local_ip_address == NULL)
-			 		error("Error on getting formatted local IP Address\n");
-
-			 	/* Construct status message for client, informing him/her of the 
-			 		local endpoint of the passive FTP */
-			 	char * full_client_message = (char *) calloc(strlen("229 Entering passive mode. \r\n") + strlen(local_ip_address),1);
-				strcat(full_client_message, "229 Entering passive mode. ");
-				strcat(full_client_message, local_ip_address);
-				strcat(full_client_message, "\r\n");
-				nwrite = write(client.fd,full_client_message,strlen(full_client_message));
-				if (nwrite < 0)
-					error("Error on sending passive server mode\n");
-
-				/* We switch active mode off and deallocate resources */
-				active = 0;
-				free(full_client_message);
-				full_client_message = NULL;
-			}
-
-			/* Command to change the working directory of the server executable */
-			else if (strcmp(command, "CWD") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client issued command CWD\n");
-				fflush(stdout);
-				#endif
-
-				/* Obtain the exact directory the client would like to switch to via strtok() */
-				command = strtok(NULL, " ");
-
-				#ifdef DEBUG
-				printf("Switching to directory %s at the request of the client\n",command);
-				fflush(stdout);
-				#endif
-
-				new_path = realloc(new_path,strlen(new_path) + strlen(command) + 2);
-				strcat(new_path,command);
-				strcat(new_path,"/");
-
-				/* Switch to the inputted directory*/
-				err = chdir(new_path);
-				if (err < 0)
-					nwrite = write(client.fd, "550\r\n", strlen("550\r\n"));
-				else
-					nwrite = write(client.fd, "250\r\n", strlen("250\r\n"));
-
-			    if (nwrite < 0)
-				    error("Error on writing CWD status to client\n");
-			}
-
-			/* Client activates Active mode FTP by issuing the PORT command with the PORT
-				that it will listen to for future data transfer connections */
-			else if (strcmp(command, "PORT")==0)
-			{
-				#ifdef DEBUG
-				printf("Client issued command PORT!\n");
-				fflush(stdout);
-				#endif
-
-				/* Get IP Address + port name, formatted according to the norms of the RFC
-					FTP standards */
-				command = strtok(NULL, " ");
-
-				#ifdef DEBUG
-				printf("Client port for active FTP: %s\n",command);
-				fflush(stdout);
-				#endif
-				
-				/* Separate IP Address from port name based on commas */
-				char * comma_separated_string = strtok(command, ",");
-				// Read until we get the two numbers corresponding to the port
-				for (int i=0; i < 3; i++)
-					comma_separated_string = strtok(NULL, ",");
-
-				/* Obtain the upper bits and lower bits of the port number in binary */
-				int upper_bits = atoi(strtok(NULL, ","));
-				int lower_bits = atoi(strtok(NULL, ","));
-
-				/* Calculate the decimal version of the port number */
-				int calculated_port = (upper_bits << 8) + lower_bits;
-
-				// Free the old port
-				free(PORT);
-				PORT = NULL;
-				// Allocate a new buffer for the new port
-				PORT = calloc(6, 1);
-				sprintf(PORT,"%d",calculated_port);
-				
-				/* Send successful active FTP activation confirmation to client */
-				nwrite = write(client.fd, "200 Entering active mode\r\n", strlen("200 Entering active mode\r\n"));
-			    if (nwrite < 0)
-				    error("Error on writing active FTP success status to client\n");
-
-				/* Switch the active FTP flag on */
-				active = 1;
-			}
-
-			else if (strcmp(command,"TYPE") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client issued command TYPE!\n");
-				fflush(stdout);
-				#endif
-
-				/* Get the type of change to the binary flag */
-				command = strtok(NULL, " ");
-
-				/* ASCII Type */
-				if (strcmp(command,"A") == 0)
-				{
-					binary_flag = 0;
-					/* Send successful binary flag update status to client */
-					nwrite = write(client.fd, "200 Entering ASCII mode\r\n", strlen("200 Entering ASCII mode\r\n"));
-			    	if (nwrite < 0)
-				   		error("Error on writing binary type success status to client\n");
-				}
-				/* Binary type */
-				else
-				{
-					binary_flag = 1;
-					/* Send successful binary flag update status to client */
-					nwrite = write(client.fd, "200 Entering binary mode\r\n", strlen("200 Entering binary mode\r\n"));
-			    	if (nwrite < 0)
-				   		error("Error on writing binary type success status to client\n");
-				}
-
-			}
-
-			/* Client command asking to recieve a list of contents of the current working directory
-				of the server executable */
-			else if (strcmp(command, "LIST") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client issued command LIST!\n");
-				fflush(stdout);
-				#endif
-
-				/* Get the contents of the current working directory */
-				char * directory_list = LIST(new_path);
-
-				/* Format and send the status message to the client, along with the contents
-					of the current working directory */
-				char * full_message = calloc(strlen(directory_list)+strlen("\r\n"),1);
-				strcat(full_message, directory_list);
-				strcat(full_message,"\r\n");
-
-				/* Handle the case where the client has currently chosen passive mode to be their
-					desired form of data transfer */
-				if (!active)
-				{
-					struct sockaddr_storage temp;
-					socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
-					/* 'Accept' the incoming client connection to our established socket */
-					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
-					if (client_data_fd < 0)
-						error("Error on accepting passive client connection for data transfer during LIST\n");	
-					else
-						nwrite = write(client.fd,"150 Opening ASCII mode data connection\r\n",strlen("150 Opening ASCII mode data connection\r\n"));
-
-					nwrite = write(client_data_fd, full_message, strlen(full_message));
-					if (nwrite < 0)
-						error("Error when sending directory contents to client in response to LIST command\n");
-
-
-					/* Close the socket descriptors that connect to the client.
-						Note that this ends the current passive mode connection; a new connection will have to be established
-						before performing further transfers */
-					close(client_data_fd);
-					close(data_fd);
-				}
-
-				/* Handle the case where the client has currently chosen active mode to be their
-					desired form of data transfer */
-				else
-				{
-					socklen_t len = sizeof(struct sockaddr_storage);
-
-					/* Keep track of the IP address and the port of the client: we will be transferring the bytes
-						of the file to this port */
-					char hoststr[NI_MAXHOST];
-					char portstr[NI_MAXSERV];
-
-					/* Obtain the IP Address and port number of the current client connection */
-					err = getnameinfo((struct sockaddr *)&(client.client_addr), len, hoststr, sizeof(hoststr), portstr, sizeof(portstr), NI_NUMERICHOST | NI_NUMERICSERV);
-
-					/* Handle error situations in processing the client connection */
-					if (err != 0) 
-					{
-						nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
-						if (nwrite < 0)
-							error("Error on communicating data connection error to client\n");
-						continue;	
-					}
-
-					/* Successfully obtained information regarding the client's connection */
-					else
-					{
-						/* Use a helper function to connect to the client's IP Address, but in a *different* port than the
-							regular command transfers. This different port, used for data transfers, was provided earlier via
-							the PORT command */
-						data_fd = get_active_client_connection(hoststr, PORT);
-
-						/* If we for some reason fail when trying to connect to the client port for active FTP, we inform the client */
-						if (data_fd < 0)
-						{
-							nwrite = write(client.fd, "425 can't open active data connection\r\n", sizeof("425 can't open active data connection\r\n"));
-							continue;
-						}
-						else
-							nwrite = write(client.fd,"150 Opening ASCII mode data connection\r\n",strlen("150 Opening ASCII mode data connection\r\n"));
-					}
-
-					nwrite = write(data_fd, full_message, strlen(full_message));
-					if (nwrite < 0)
-						error("Error when sending directory contents to client in response to LIST command.\n");
-
-					/* Close the associated file descriptors */
-					close(data_fd);
-				}
-
-
-				#ifdef DEBUG
-				printf("Finish listing directory contents! \n");
-				fflush(stdout);
-				#endif
-
-				nwrite = write(client.fd,"226 Directory contents listed\r\n",strlen("226 Directory contents listed\r\n"));
-				if (nwrite < 0)
-					error("Error when writing LIST success status to client.\n");
-
-				/* Deallocate resources */
-				free(full_message);
-				full_message = NULL;
-				free(directory_list);
-				directory_list = NULL;
-			}
-
-			/* Client has issued a command to get a certain file */
-			else if (strcmp(command, "RETR") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client has issued command RETR!\n");
-				fflush(stdout);
-				#endif
-
-				// Get the specific filename for retrieval 
-				char * filename = strtok(NULL, " ");
-
-				// Open the file, returning an error to the client if something went wrong
-				int file_fd = open(filename, O_RDONLY);
-				if (file_fd < 0)
-				{
-					nwrite = write(client.fd, "550 Error during file access \r\n", sizeof("550 Error during file access \r\n"));
-					if (nwrite < 0)
-						error("Error on communicating file access error code to client.\n");
-				}
-
-				// Inform the client that we are ready to transfer the requested file.
-				else
-				{
-					nwrite = write(client.fd, "150 Opening ASCII mode data connection\r\n", sizeof("150 Opening ASCII mode data connection\r\n"));
-					if (nwrite < 0)
-						error("Error on communicating ASCII mode file transfer information to client.\n");
-				}
-
-				/* Handle the case where the client has currently chosen passive mode to be their
-					desired form of data transfer */
-				if (!active)
-				{
-					struct sockaddr_storage temp;
-					socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
-					/* 'Accept' the incoming client connection to our established socket */
-					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
-					if (client_data_fd < 0)
-						error("Error on accepting passive client connection for data transfer during RETR.\n");	
-
-					/* Call the RETR command, and if we encounter an error during data transfer, we 
-						inform the client */
-					err = RETR(file_fd, client_data_fd, binary_flag);
-					if (err < 0)
-						nwrite = write(client.fd, "451 Local error in file processing\r\n", sizeof("451 Local error in file processing\r\n"));
-					else
-						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
-
-					/* Close the file descriptor to the file, and the socket descriptors that connect to the client.
-						Note that this ends the current passive mode connection; a new connection will have to be established
-						before performing further transfers */
-					close(file_fd);
-					close(client_data_fd);
-					close(data_fd);
-				}
-
-				/* Handle the case where the client has currently chosen active mode to be their
-					desired form of data transfer */
-				else
-				{
-					socklen_t len = sizeof(struct sockaddr_storage);
-
-					/* Keep track of the IP address and the port of the client: we will be transferring the bytes
-						of the file to this port */
-					char hoststr[NI_MAXHOST];
-					char portstr[NI_MAXSERV];
-
-					/* Obtain the IP Address and port number of the current client connection */
-					err = getnameinfo((struct sockaddr *)&(client.client_addr), len, hoststr, sizeof(hoststr), portstr, sizeof(portstr), NI_NUMERICHOST | NI_NUMERICSERV);
-
-					/* Handle error situations in processing the client connection */
-					if (err != 0) 
-					{
-						nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
-						if (nwrite < 0)
-							error("Error on communicating data connection error to client.\n");
-						continue;	
-					}
-
-					/* Successfully obtained information regarding the client's connection */
-					else
-					{
-						/* Use a helper function to connect to the client's IP Address, but in a *different* port than the
-							regular command transfers. This different port, used for data transfers, was provided earlier via
-							the PORT command */
-						data_fd = get_active_client_connection(hoststr, PORT);
-
-						/* If we for some reason fail when trying to connect to the client port for active FTP, we inform the client */
-						if (data_fd < 0)
-						{
-							nwrite = write(client.fd, "425 can't open active data connection\r\n", sizeof("425 can't open active data connection\r\n"));
-							continue;
-						}
-					}
-
-					/* After obtaining the active client connection, we call the RETR function to 
-						pass the bytes of the file to the client */
-					err = RETR(file_fd, data_fd, binary_flag);
-					if (err < 0)
-						nwrite = write(client.fd, "451 Local error in file processing\r\n", sizeof("451 Local error in file processing\r\n"));
-					else
-						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
-
-					/* Close the associated file descriptors */
-					close(file_fd);
-					close(data_fd);
-				}
-				
-			}
-
-			/* The client has issued a command requesting to store a file on the server,
-				in the current working directory of the program */
-			else if (strcmp(command,"STOR") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client has issued command STOR!\n");
-				fflush(stdout);
-				#endif 
-
-				/* Obtain the filename of the file to be created */
-				char * filename = strtok(NULL, " ");
-
-				/* Declare the file descriptor corresponding to the new file */
-				int file_fd;
-
-				/* Erase the old contents of the file so that may append new client conntent */
-				err = truncate(filename, 0);
-
-				/* If the error is of type ENOENT, it means that the truncation failed due to us passing
-					a non-existent file as argument. Such a situation is acceptable as we will create a new file
-					anyway. If we recieve another error however, we have to inform the client and abort
-					the procedure */
-				if (err < 0)
-				{
-					if (errno != ENOENT)
-					{	
-						/* Inform the client of the error during truncation */
-						nwrite = write(client.fd, "452 file unavailable\r\n", sizeof("452 file unavailable\r\n"));
-						if (nwrite < 0)
-							error("Error in communicating truncation error to the client.\n");
-						continue;
-					}
-				}
-
-				/* Create the file descriptor with the O_EXCL flag since we don't want
-					another process to open the file at the same time. */
-				file_fd = open(filename, O_CREAT | O_EXCL | O_WRONLY, 0644);
-
-				/* An error occured in opening the file descriptor */
-				if (file_fd < 0)
-				{
-					/* The situation where another process was trying to open the same file descriptor */
-					if (errno == EEXIST)
-					{
-						#ifdef DEBUG
-						printf("ERROR: Concurrent creation of the same file descriptor! \n");
-						fflush(stdout);
-						#endif
-
-						/* Inform the client of the error */
-						nwrite = write(client.fd, "452 file unavailable\r\n", sizeof("452 file unavailable\r\n"));
-						if (nwrite < 0)
-							error("Error in communicating file concurrent access to the client.\n");
-						continue;
-					}
-				}
-				
-				/* Inform the client that we are ready to transfer the bytes to store a file */
-				nwrite = write(client.fd, "150 Opening ASCII mode data connection\r\n", sizeof("150 Opening ASCII mode data connection\r\n"));
-				if (nwrite < 0)
-					error("Error on communicating ASCII file transfer to client.\n");
-
-				/* Handle the case where the client has currently chosen passive mode to be their
-					desired form of data transfer */
-				if (!active)
-				{
-					struct sockaddr_storage temp;
-					socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
-					/* 'Accept' the incoming client connection to our established socket */
-					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
-					if (client_data_fd < 0)
-						error("Error on accepting client channel for data transfer.\n");
-
-					/* Call the STOR command, and if we encounter an error during data transfer, we 
-						inform the client */
-					err = STOR(file_fd, client_data_fd,binary_flag);
-					if (err < 0)
-						nwrite = write(client.fd, "451 Local error in file processing\r\n", sizeof("451 Local error in file processing\r\n"));
-					else
-						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
-
-					/* Close the file descriptor to the file, and the socket descriptors that connect to the client.
-						Note that this ends the current passive mode connection; a new connection will have to be established
-						before performing further transfers */
-					close(file_fd);
-					close(client_data_fd);
-					close(data_fd);
-				}
-
-				/* Handle the case where the client has currently chosen active mode to be their
-					desired form of data transfer */
-				else
-				{
-					socklen_t len = sizeof(struct sockaddr_storage);
-
-					/* Keep track of the IP address and the port of the client: we will be transferring the bytes
-						of the file to this port */
-					char hoststr[NI_MAXHOST];
-					char portstr[NI_MAXSERV];
-
-					/* Obtain the IP Address and port number of the current client connection */
-					err = getnameinfo((struct sockaddr *)&(client.client_addr), len, hoststr, sizeof(hoststr), portstr, sizeof(portstr), NI_NUMERICHOST | NI_NUMERICSERV);
-
-					/* Handle error situations in processing the client connection */
-					if (err != 0) 
-					{
-						nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
-						if (nwrite < 0)
-							error("Error on communicating data connection error to client.\n");
-						continue;	
-					}
-
-					/* Successfully obtained information regarding the client's connection */			
-					else
-					{
-						/* Use a helper function to connect to the client's IP Address, but in a *different* port than the
-							regular command transfers. This different port, used for data transfers, was provided earlier via
-							the PORT command */
-						data_fd = get_active_client_connection(hoststr, PORT);
-
-						/* If we for some reason fail when trying to connect to the client port for active FTP, we inform the client */
-						if (data_fd < 0)
-						{
-							nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
-							continue;
-						}
-					}
-
-					/* After obtaining the active client connection, we call the STOR function to 
-						write the bytes of the client connection into the file */
-					err = STOR(file_fd, data_fd,binary_flag);
-					if (err < 0)
-						nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
-					else
-						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
-
-					/* Close the associated file descriptors */
-					close(file_fd);
-					close(data_fd);
-				}
-
-			}
-
-			else if (strcmp(command,"APPE") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client has issued command APPE!\n");
-				fflush(stdout);
-				#endif
-
-				/* Obtain the filename of the file to be created */
-				char * filename = strtok(NULL, " ");
-
-				/* Declare the file descriptor corresponding to the new file */
-				int file_fd;
-
-				/* Open a new file descriptor to append to the file */
-				file_fd = open(filename, O_CREAT | O_APPEND, 0644);
-
-				/* Error in opening file descriptor, so we inform the client */
-				if (file_fd < 0)
-				{
-					nwrite = write(client.fd, "452 file unavailable\r\n", sizeof("452 file unavailable\r\n"));
-					if (nwrite < 0)
-						error("Error on communicating file unavailable to client.\n");
-				}
-
-				/* Else we inform client of successful opening of file for appending */
-				else
-				{
-					nwrite = write(client.fd, "150 Opening ASCII mode data connection\r\n", sizeof("150 Opening ASCII mode data connection\r\n"));
-					if (nwrite < 0)
-						error("Error on communicating APPE file opening success to client.\n");
-				}
-                
-                /* Handle the case where the client has currently chosen passive mode to be their
-					desired form of data transfer */
-				if (!active)
-				{
-					struct sockaddr_storage temp;
-					socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
-					/* 'Accept' the incoming client connection to our established socket */
-					client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
-					if (client_data_fd < 0)
-						error("Error on accepting client channel for data transfer.\n");
-
-					/* Using append mode, we again call the STOR command, and if we encounter an error during data transfer, we 
-						inform the client */
-					err = STOR(file_fd, client_data_fd, binary_flag);
-					if (err < 0)
-						nwrite = write(client.fd, "451 Local error in file processing\r\n", sizeof("451 Local error in file processing\r\n"));
-					else
-						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
-
-					/* Close the file descriptor to the file, and the socket descriptors that connect to the client.
-						Note that this ends the current passive mode connection; a new connection will have to be established
-						before performing further transfers */
-					close(file_fd);
-					close(client_data_fd);
-					close(data_fd);
-				}
-
-				/* Handle the case where the client has currently chosen active mode to be their
-					desired form of data transfer */
-				else
-				{
-					socklen_t len = sizeof(struct sockaddr_storage);
-
-					/* Keep track of the IP address and the port of the client: we will be transferring the bytes
-						of the file to this port */
-					char hoststr[NI_MAXHOST];
-					char portstr[NI_MAXSERV];
-
-					/* Obtain the IP Address and port number of the current client connection */
-					err = getnameinfo((struct sockaddr *)&(client.client_addr), len, hoststr, sizeof(hoststr), portstr, sizeof(portstr), NI_NUMERICHOST | NI_NUMERICSERV);
-
-					/* Handle error situations in processing the client connection */
-					if (err != 0) 
-					{
-						nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
-						if (nwrite < 0)
-							error("Error on communicating data connection error to client.\n");
-						continue;	
-					}
-
-					/* Successfully obtained information regarding the client's connection */			
-					else
-					{
-						/* Use a helper function to connect to the client's IP Address, but in a *different* port than the
-							regular command transfers. This different port, used for data transfers, was provided earlier via
-							the PORT command */
-						data_fd = get_active_client_connection(hoststr, PORT);
-
-						/* If we for some reason fail when trying to connect to the client port for active FTP, we inform the client */
-						if (data_fd < 0)
-						{
-							nwrite = write(client.fd, "425 can't open data connection\r\n", sizeof("425 can't open data connection\r\n"));
-							continue;
-						}
-					}
-
-					/* After obtaining the active client connection, we call the STOR function with our
-						file descriptor in 'append' mode to write the bytes of the client connection into the file */
-					err = STOR(file_fd, data_fd, binary_flag);
-					if (err < 0)
-						nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
-					else
-						nwrite = write(client.fd, "226 Transfer complete\r\n", sizeof("226 Transfer complete\r\n"));
-
-					/* Close the associated file descriptors */
-					close(file_fd);
-					close(data_fd);
-				}
-
-			}
-			
-			/* Client has issued the command to remove a specified directory */
-			else if (strcmp(command,"RMD") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client has issued command RMD!\n");
-				fflush(stdout);
-				#endif
-
-				/* Obtain the directory name for removal */
-				const char * dirname = strtok(NULL, " ");
-
-				/* Then simply remove the specified directory */
-				err = rmdir(dirname);
-				if (err < 0)
-					nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
-				else
-					nwrite = write(client.fd, "226 Removal complete\r\n", sizeof("226 Removal complete\r\n"));
-			}
-
-			/* Client has issued the command to make a new directory */
-			else if (strcmp(command, "MKD") == 0)
-			{
-				#ifdef DEBUG
-				printf("Client has issued command MKD!\n");
-				fflush(stdout);
-				#endif
-
-				/* Obtain the directory name for removal */
-				const char * dirname = strtok(NULL, " ");
-
-				/* TODO: How to get the mode of the new directory? */
-
-				/* Then simply make the specified new directory */
-				err = mkdir(dirname, 0644);
-				if (err < 0)
-					nwrite = write(client.fd, "451 Local error in processing\r\n", sizeof("451 Local error in processing\r\n"));
-				else
-					nwrite = write(client.fd, "226 Directory creation complete\r\n", sizeof("226 Directory creation complete\r\n"));
-			}
-
-			/* The command issued by the client could not be matched with any of the 
-				commands supported by the server */
+			/* The command issued by the client could not be matched 
+				with any of the commands supported by the server */
 			else
 			{
-				#ifdef DEBUG
-				printf("Unsupported command issued by client\n");
-				fflush(stdout);
-				#endif
+				print_debug("Unsupported command issued by client\n");
 
-				/* Inform the client that the command he/she sent is not suppported by the server */
-				nwrite = write(client.fd, "500 Command not supported\r\n", strlen("500 Command not supported\r\n"));
+				/* Inform the client that the command he/she sent is 
+					not suppported by the server */
+				nwrite = write(client.fd, 
+					"500 Command not supported\r\n", 
+					strlen("500 Command not supported\r\n"));
 				if (nwrite < 0)
-					error("Error in informing client of unsupported command.\n");
+					error("Error in informing client of \
+						unsupported command.\n");
 			}
 
-			/* Reset the buffer to receive the next command, removing any residual characters */
-         	memset(buf_ptr,0,sizeof(buf));
+			/* Reset the buffer to receive the next command, 
+				removing any residual characters */
+         	memset(buf_ptr,0,sizeof (buf));
 		}
 
-		/* Client has either closed his/her side of the connection or we encountered a 
+		/* Client has either closed his/her side of 
+			the connection or we encountered a 
 			connection failure, therefore we close the connection */
 		close(client.fd);
 
-		#ifdef DEBUG
-		printf("Client connection stopped or failed!\n");
-		fflush(stdout);
-		#endif
+		print_debug("Client connection stopped or failed!\n");
 
 		/* Deallocate certain buffers */
 		free(new_path);
 		new_path = NULL;
 		free(PORT);
 		PORT = NULL;
-		free(local_ip_address);
-		local_ip_address = NULL;
 
-		/* Thread will continue to wait for further client connections to process */
+		/* Thread will continue to wait for further 
+			client connections to process */
 		continue;
 	}
 }
+
+/* Handler function for the PWD FTP command */
+void
+PWD_HANDLER(int client_comm_fd, char * new_path)
+{
+	/* Print the current working directory of the server, 
+					along with the associated status codes */
+	char * working_directory = new_path;
+	char * full_message = calloc(strlen("257 \r\n") \
+		+ strlen(working_directory)+2,1);
+	strcat(full_message,"257 ");
+	strcat(full_message,"\"");
+	strcat(full_message, working_directory);
+	strcat(full_message,"\"");
+	strcat(full_message, "\r\n");
+	ssize_t nwrite = write(client_comm_fd,full_message,strlen(full_message));
+	if (nwrite < 0)
+		error("Error on sending current working directory to client\n");
+
+	print_debug("Wrote working directory to client: ");
+	print_debug(full_message);
+	print_debug("\n");
+
+	free(full_message);
+}
+
+/* Handler function for the PASV FTP command */
+void
+PASV_HANDLER(int client_comm_fd, int * active_flag, long * data_port,
+	int * data_fd)
+{
+	print_debug("Client issued command PASV!\n");
+
+	/* Choose a random port to listen for data connections */
+	*data_port = get_random_port();
+
+	/* Generate a socket that is listening on the randomly generated port */
+ 	*data_fd = initiate_server(*data_port);
+	if (*data_fd < 0)
+		error("Error initiating passive FTP socket!\n");
+
+	/* Get formatted IP Address + Port to send to the client.
+		We also specify that we require IPv4 only, since we are not in
+		extended passive mode. */
+ 	char * local_ip_address = get_formatted_local_ip_address(*data_port,1);
+ 	if (local_ip_address == NULL)
+ 		error("Error on getting formatted local IP Address\n");
+
+ 	/* Construct status message for client, informing him/her of the 
+ 		local endpoint of the passive FTP */
+ 	char * full_client_message = 
+ 	(char *) calloc(strlen("227 Entering passive mode. \r\n") + \
+ 		strlen(local_ip_address),1);
+	strcat(full_client_message, "227 Entering passive mode. ");
+	strcat(full_client_message, local_ip_address);
+	strcat(full_client_message, "\r\n");
+	ssize_t nwrite = write(client_comm_fd,full_client_message,
+		strlen(full_client_message));
+	if (nwrite < 0)
+		error("Error on sending passive server mode status to client\n");
+
+	/* We switch active mode off and deallocate resources */
+	*active_flag = 0;
+	free(full_client_message);
+	full_client_message = NULL;
+	free(local_ip_address);
+	local_ip_address = NULL;
+}
+
+/* Handler function for the EPSV FTP command */
+void
+EPSV_HANDLER(int client_comm_fd, int * active_flag, long * data_port,
+	int * data_fd)
+{
+	print_debug("Client issued command EPSV!\n");
+
+	/* Choose a random port to listen for data connections */
+	*data_port = get_random_port();
+
+	/* Generate a socket that is listening on the 
+		randomly generated port */
+ 	*data_fd = initiate_server(*data_port);
+	if (*data_fd < 0)
+		error("Error initiating passive FTP socket!\n");
+
+	/* Get formatted IP Address + Port to send to the client. */
+ 	char * local_ip_address = get_formatted_local_ip_address(*data_port,0);
+ 	if (local_ip_address == NULL)
+ 		error("Error on getting formatted local IP Address\n");
+
+ 	/* Construct status message for client, informing him/her of the 
+ 		local endpoint of the passive FTP */
+ 	char * full_client_message =
+ 	(char *) calloc(strlen("229 Entering passive mode. \r\n")
+ 	 + strlen(local_ip_address),1);
+	strcat(full_client_message, "229 Entering passive mode. ");
+	strcat(full_client_message, local_ip_address);
+	strcat(full_client_message, "\r\n");
+	ssize_t nwrite = write(client_comm_fd,
+		full_client_message,strlen(full_client_message));
+	if (nwrite < 0)
+		error("Error on sending passive server mode\n");
+
+	/* We switch active mode off and deallocate resources */
+	*active_flag = 0;
+	free(full_client_message);
+	full_client_message = NULL;
+	free(local_ip_address);
+	local_ip_address = NULL;
+}
+
+/* Handler function for the CWD FTP command */
+void
+CWD_HANDLER(char * input_command, int client_comm_fd, char * old_path)
+{
+	print_debug("Client issued command CWD\n");
+
+	/* Obtain the exact directory the client would like 
+		to switch to via strtok() */
+	input_command = strtok(NULL, " ");
+
+	print_debug("Switching to directory ");
+	print_debug(input_command);
+	print_debug(" at the request of the client\n");
+
+	char * new_path = calloc(strlen(old_path) 
+		+ strlen(input_command) + 2,1);
+
+	strcat(new_path,old_path);
+	strcat(new_path,"/");
+	strcat(new_path,input_command);
+	strcat(new_path,"/");
+
+	ssize_t nwrite = 0;
+	/* Switch to the inputted directory*/
+	int err = chdir(new_path);
+	if (err < 0)
+	{
+		nwrite = write(client_comm_fd, "550\r\n", strlen("550\r\n"));
+		free(new_path);
+		new_path = NULL;
+	}
+	else
+	{
+		nwrite = write(client_comm_fd, "250\r\n", strlen("250\r\n"));
+		free(old_path);
+		old_path = NULL;
+		old_path = new_path;
+	}
+
+    if (nwrite < 0)
+	    error("Error on writing CWD status to client\n");	
+}
+
+/* Handler function for the PORT FTP command */
+void
+PORT_HANDLER(char * input_command, int client_comm_fd, 
+	char * PORT, int * active_flag)
+{
+	print_debug("Client issued command PORT!\n");
+
+	/* Get IP Address + port name, formatted according to 
+		the norms of the RFC
+		FTP standards */
+	input_command = strtok(NULL, " ");
+
+	print_debug("Client port for active FTP: ");
+	print_debug(input_command);
+	print_debug("\n");
+	
+	/* Separate IP Address from port name based on commas */
+	char * comma_separated_string;
+	comma_separated_string = strtok(input_command, ",");
+	// Read until we get the two numbers corresponding to the port
+	for (int i=0; i < 3; i++)
+		comma_separated_string = strtok(NULL, ",");
+
+	/* Obtain the upper bits and lower bits of the port
+		number in binary */
+	int upper_bits = atoi(strtok(NULL, ","));
+	int lower_bits = atoi(strtok(NULL, ","));
+
+	/* Calculate the decimal version of the port number */
+	int calculated_port = (upper_bits << 8) + lower_bits;
+
+	// Free the old port
+	free(PORT);
+	PORT = NULL;
+	// Allocate a new buffer for the new port
+	PORT = calloc(6, 1);
+	sprintf(PORT,"%d",calculated_port);
+	
+	/* Send successful active FTP activation confirmation to client */
+	ssize_t nwrite = write(client_comm_fd, "200 Entering active mode\r\n",
+		strlen("200 Entering active mode\r\n"));
+    if (nwrite < 0)
+	    error("Error on writing active FTP success \
+	    	status to client\n");
+
+	/* Switch the active FTP flag on */
+	*active_flag = 1;
+}
+
+/* Handler function for the TYPE FTP command */
+void
+TYPE_HANDLER(char * input_command, int client_comm_fd, int * binary_flag)
+{
+	print_debug("Client issued command TYPE!\n");
+
+	/* Get the type of change to the binary flag */
+	input_command = strtok(NULL, " ");
+
+	/* ASCII Type */
+	if (strcmp(input_command,"A") == 0)
+	{
+		*binary_flag = 0;
+		/* Send successful binary flag update status to client */
+		ssize_t nwrite = write(client_comm_fd, "200 Entering ASCII mode\r\n",
+			strlen("200 Entering ASCII mode\r\n"));
+    	if (nwrite < 0)
+	   		error("Error on writing binary type success \
+	   			status to client\n");
+	}
+	/* Binary type */
+	else
+	{
+		*binary_flag = 1;
+		/* Send successful binary flag update status to client */
+		ssize_t nwrite = write(client_comm_fd, "200 Entering binary mode\r\n",
+			strlen("200 Entering binary mode\r\n"));
+    	if (nwrite < 0)
+	   		error("Error on writing binary \
+	   			type success status to client\n");
+	}
+}
+
+/* Handle for the LIST FTP command */
+void
+LIST_HANDLER(char * input_command, int client_comm_fd, char * new_path,
+	int active_flag, char * PORT, int data_fd, 
+	struct sockaddr_storage client_addr, int client_data_fd)
+{
+	print_debug("Client issued command LIST!\n");
+
+	ssize_t nwrite;
+	int err;
+	/* Get the contents of the current working directory */
+	char * directory_list = LIST(new_path);
+
+	/* Format and send the status message to the client, 
+		along with the contents
+		of the current working directory */
+	char * full_message = calloc(strlen(directory_list)+strlen("\r\n"),1);
+	strcat(full_message, directory_list);
+	strcat(full_message,"\r\n");
+
+	/* Handle the case where the client has currently 
+		chosen passive mode to be their
+		desired form of data transfer */
+	if (!active_flag)
+	{
+		struct sockaddr_storage temp;
+		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
+		/* 'Accept' the incoming client connection to our 
+			established socket */
+		client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
+		if (client_data_fd < 0)
+			error("Error on accepting passive client connection \
+				for data transfer during LIST\n");	
+		else
+			nwrite = write(client_comm_fd,"150 Opening ASCII mode \
+				data connection\r\n",strlen("150 Opening ASCII \
+					mode data connection\r\n"));
+
+		nwrite = write(client_data_fd, full_message, strlen(full_message));
+		if (nwrite < 0)
+			error("Error when sending directory contents to \
+				client in response to LIST command\n");
+
+
+		/* Close the socket descriptors that connect to the client.
+			Note that this ends the current passive mode connection; 
+			a new connection will have to be established
+			before performing further transfers */
+		close(client_data_fd);
+		close(data_fd);
+	}
+
+	/* Handle the case where the client has currently chosen 
+		active mode to be their
+		desired form of data transfer */
+	else
+	{
+		socklen_t len = sizeof (struct sockaddr_storage);
+
+		/* Keep track of the IP address and the port of the client: 
+			we will be transferring the bytes
+			of the file to this port */
+		char hoststr[NI_MAXHOST];
+		char portstr[NI_MAXSERV];
+
+		/* Obtain the IP Address and port 
+			number of the current client connection */
+		err = getnameinfo((struct sockaddr *)&(client_addr),
+			len, hoststr, sizeof (hoststr), portstr, sizeof (portstr),
+			NI_NUMERICHOST | NI_NUMERICSERV);
+
+		/* Handle error situations in processing the client connection */
+		if (err != 0) 
+		{
+			nwrite = write(client_comm_fd, "425 can't open data \
+				connection\r\n", strlen("425 can't open data connection\r\n"));
+			if (nwrite < 0)
+				error("Error on communicating data connection \
+					error to client\n");
+			return;	
+		}
+
+		/* Successfully obtained information regarding the 
+			client's connection */
+		else
+		{
+			/* Use a helper function to connect to the client's IP Address, 
+				but in a *different* port than the
+				regular command transfers. This different port, 
+				used for data transfers, was provided earlier via
+				the PORT command */
+			data_fd = get_active_client_connection(hoststr, PORT);
+
+			/* If we for some reason fail when trying to connect to the 
+			client port for active FTP, we inform the client */
+			if (data_fd < 0)
+			{
+				nwrite = write(client_comm_fd, "425 can't open active \
+					data connection\r\n", strlen("425 can't open active \
+						data connection\r\n"));
+				return;
+			}
+			else
+				nwrite = write(client_comm_fd,"150 Opening ASCII mode data \
+					connection\r\n",strlen("150 Opening ASCII mode data \
+						connection\r\n"));
+		}
+
+		nwrite = write(data_fd, full_message, strlen(full_message));
+		if (nwrite < 0)
+			error("Error when sending directory contents to client \
+				in response to LIST command.\n");
+
+		/* Close the associated file descriptors */
+		close(data_fd);
+	}
+
+	nwrite = write(client_comm_fd,"226 Directory contents listed\r\n",
+		strlen("226 Directory contents listed\r\n"));
+	if (nwrite < 0)
+		error("Error when writing LIST success status to client.\n");
+
+	/* Deallocate resources */
+	free(full_message);
+	full_message = NULL;
+	free(directory_list);
+	directory_list = NULL;
+}
+
+/* Handle for the STOR FTP command */
+void
+STOR_HANDLER(char * input_command, int client_comm_fd,
+	int binary_flag, int active_flag, char * PORT,
+	int data_fd, struct sockaddr_storage client_addr, int client_data_fd)
+{
+	print_debug("Client has issued command STOR!\n");
+
+	ssize_t nwrite;
+	int err;
+	/* Obtain the filename of the file to be created */
+	char * filename = strtok(NULL, " ");
+
+	/* Declare the file descriptor corresponding to the new file */
+	int file_fd;
+
+	/* Erase the old contents of the file so that may append new client 
+		content */
+	err = truncate(filename, 0);
+
+	/* If the error is of type ENOENT, it means that the 
+		truncation failed due to us passing a non-existent file as 
+		argument. Such a situation is acceptable as we will create 
+		a new file anyway. If we recieve another error however, 
+		we have to inform the client and abort
+		the procedure */
+	if (err < 0)
+	{
+		if (errno != ENOENT)
+		{	
+			/* Inform the client of the error during truncation */
+			nwrite = write(client_comm_fd, 
+				"452 file unavailable\r\n", 
+				strlen("452 file unavailable\r\n"));
+
+			if (nwrite < 0)
+				error("Error in communicating truncation error \
+					to the client.\n");
+			return;
+		}
+	}
+
+	/* Create the file descriptor with the O_EXCL flag since we don't want
+		another process to open the file at the same time. */
+	file_fd = open(filename, O_CREAT | O_EXCL | O_WRONLY, 0644);
+
+	/* An error occured in opening the file descriptor */
+	if (file_fd < 0)
+	{
+		/* The situation where another process was trying to open 
+			the same file descriptor */
+		if (errno == EEXIST)
+		{
+			print_debug("ERROR: Concurrent creation of the same file \
+				descriptor! \n");
+
+			/* Inform the client of the error */
+			nwrite = write(client_comm_fd, "452 file unavailable\r\n", 
+				strlen("452 file unavailable\r\n"));
+			if (nwrite < 0)
+				error("Error in communicating file concurrent \
+					access to the client.\n");
+			return;
+		}
+	}
+	
+	/* Inform the client that we are ready to transfer the bytes to 
+		store a file */
+	nwrite = write(client_comm_fd, "150 Opening file transfer data \
+		connection\r\n", strlen("150 Opening file transfer data \
+			connection\r\n"));
+	if (nwrite < 0)
+		error("Error on communicating ASCII file transfer to client.\n");
+
+	/* Handle the case where the client has currently chosen 
+		passive mode to be their
+		desired form of data transfer */
+	if (!active_flag)
+	{
+		struct sockaddr_storage temp;
+		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
+		/* 'Accept' the incoming client connection to our established socket */
+		client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
+		if (client_data_fd < 0)
+			error("Error on accepting client channel for data transfer.\n");
+
+		/* Call the STOR command, and if we encounter an error during 
+			data transfer, we inform the client */
+		err = STOR(file_fd, client_data_fd,binary_flag);
+		if (err < 0)
+			nwrite = write(client_comm_fd, 
+				"451 Local error in file processing\r\n", 
+				strlen("451 Local error in file processing\r\n"));
+		else
+			nwrite = write(client_comm_fd, "226 Transfer complete\r\n", 
+				strlen("226 Transfer complete\r\n"));
+
+		/* Close the file descriptor to the file, and the 
+			socket descriptors that connect to the client.
+			Note that this ends the current passive mode connection; 
+			a new connection will have to be established
+			before performing further transfers */
+		close(file_fd);
+		close(client_data_fd);
+		close(data_fd);
+	}
+
+	/* Handle the case where the client has currently 
+		chosen active mode to be their
+		desired form of data transfer */
+	else
+	{
+		socklen_t len = sizeof (struct sockaddr_storage);
+
+		/* Keep track of the IP address and the port of the client: 
+			we will be transferring the bytes
+			of the file to this port */
+		char hoststr[NI_MAXHOST];
+		char portstr[NI_MAXSERV];
+
+		/* Obtain the IP Address and port number of the 
+			current client connection */
+		err = getnameinfo((struct sockaddr *)&(client_addr), len, hoststr, 
+			sizeof (hoststr), portstr, sizeof (portstr), 
+			NI_NUMERICHOST | NI_NUMERICSERV);
+
+		/* Handle error situations in processing the client connection */
+		if (err != 0) 
+		{
+			nwrite = write(client_comm_fd, 
+				"425 can't open data connection\r\n", 
+				strlen("425 can't open data connection\r\n"));
+			if (nwrite < 0)
+				error("Error on communicating data connection \
+					error to client.\n");
+			return;	
+		}
+
+		/* Successfully obtained information regarding the client's 
+			connection */			
+		else
+		{
+			/* Use a helper function to connect to the client's IP Address, 
+				but in a *different* port than the regular command transfers. 
+				This different port, used for data transfers, was 
+				provided earlier via the PORT command */
+			data_fd = get_active_client_connection(hoststr, PORT);
+
+			/* If we for some reason fail when trying to connect to 
+				the client port for active FTP, we inform the client */
+			if (data_fd < 0)
+			{
+				nwrite = write(client_comm_fd, 
+					"425 can't open data connection\r\n", 
+					strlen("425 can't open data connection\r\n"));
+				return;
+			}
+		}
+
+		/* After obtaining the active client connection, 
+			we call the STOR function to 
+			write the bytes of the client connection into the file */
+		err = STOR(file_fd, data_fd,binary_flag);
+		if (err < 0)
+			nwrite = write(client_comm_fd, 
+				"451 Local error in processing\r\n", 
+					strlen("451 Local error in processing\r\n"));
+		else
+			nwrite = write(client_comm_fd, 
+				"226 Transfer complete\r\n", 
+				strlen("226 Transfer complete\r\n"));
+
+		/* Close the associated file descriptors */
+		close(file_fd);
+		close(data_fd);
+	}
+
+}
+
+void 
+APPE_HANDLER(char * input_command, int client_comm_fd,
+	int binary_flag, int active_flag, char * PORT,
+	int data_fd, struct sockaddr_storage client_addr)
+{
+	print_debug("Client has issued command APPE!\n");
+
+	ssize_t nwrite;
+	int err;
+	/* Obtain the filename of the file to be created */
+	char * filename = strtok(NULL, " ");
+
+	/* Declare the file descriptor corresponding to the new file */
+	int file_fd;
+
+	/* Open a new file descriptor to append to the file */
+	file_fd = open(filename, O_CREAT | O_APPEND, 0644);
+
+	/* Error in opening file descriptor, so we inform the client */
+	if (file_fd < 0)
+	{
+		nwrite = write(client_comm_fd
+			, "452 file unavailable\r\n", strlen("452 file unavailable\r\n"));
+		if (nwrite < 0)
+			error("Error on communicating file unavailable to client.\n");
+	}
+
+	/* Else we inform client of successful opening of file for appending */
+	else
+	{
+		nwrite = write(client_comm_fd, 
+			"150 Opening file transfer data connection\r\n", 
+			strlen("150 Opening file transfer data connection\r\n"));
+
+		if (nwrite < 0)
+			error("Error on communicating APPE file opening \
+				success to client.\n");
+	}
+
+	/* Handle the case where the client has currently chosen passive 
+		mode to be their
+		desired form of data transfer */
+	if (!active_flag)
+	{
+		struct sockaddr_storage temp;
+		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
+		/* 'Accept' the incoming client connection to our established socket */
+		int client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
+		if (client_data_fd < 0)
+			error("Error on accepting client channel for data transfer.\n");
+
+		/* Using append mode, we again call the STOR command, and 
+			if we encounter an error during data transfer, we 
+			inform the client */
+		err = STOR(file_fd, client_data_fd, binary_flag);
+		if (err < 0)
+			nwrite = write(client_comm_fd, 
+				"451 Local error in file processing\r\n", 
+				strlen("451 Local error in file processing\r\n"));
+		else
+			nwrite = write(client_comm_fd, 
+				"226 Transfer complete\r\n", 
+				strlen("226 Transfer complete\r\n"));
+
+		/* Close the file descriptor to the file, and the socket 
+			descriptors that connect to the client.
+			Note that this ends the current passive mode connection; 
+			a new connection will have to be established
+			before performing further transfers */
+		close(file_fd);
+		close(client_data_fd);
+		close(data_fd);
+	}
+
+	/* Handle the case where the client has 
+		currently chosen active mode to be their
+		desired form of data transfer */
+	else
+	{
+		socklen_t len = sizeof (struct sockaddr_storage);
+
+		/* Keep track of the IP address and the port of the client: 
+			we will be transferring the bytes
+			of the file to this port */
+		char hoststr[NI_MAXHOST];
+		char portstr[NI_MAXSERV];
+
+		/* Obtain the IP Address and port number of the current 
+			client connection */
+		err = getnameinfo((struct sockaddr *)&(client_addr), len, hoststr, 
+			sizeof (hoststr), portstr, sizeof (portstr), 
+			NI_NUMERICHOST | NI_NUMERICSERV);
+
+		/* Handle error situations in processing the client connection */
+		if (err != 0) 
+		{
+			nwrite = write(client_comm_fd, 
+				"425 can't open data connection\r\n", 
+				strlen("425 can't open data connection\r\n"));
+			if (nwrite < 0)
+				error("Error on communicating data connection error \
+					to client.\n");
+			return;	
+		}
+
+		/* Successfully obtained information regarding the 
+			client's connection */			
+		else
+		{
+			/* Use a helper function to connect to the client's IP Address, 
+				but in a *different* port than the regular command transfers. 
+				This different port, used for data transfers, was 
+				provided earlier via the PORT command */
+			data_fd = get_active_client_connection(hoststr, PORT);
+
+			/* If we for some reason fail when trying to connect 
+				to the client port for active FTP, we inform the client */
+			if (data_fd < 0)
+			{
+				nwrite = write(client_comm_fd, 
+					"425 can't open data connection\r\n", 
+					strlen("425 can't open data connection\r\n"));
+				return;
+			}
+		}
+
+		/* After obtaining the active client connection, 
+			we call the STOR function with our file descriptor in 'append' mode
+			to write the bytes of the client connection into the file */
+		err = STOR(file_fd, data_fd, binary_flag);
+		if (err < 0)
+			nwrite = write(client_comm_fd, 
+				"451 Local error in processing\r\n", 
+				strlen("451 Local error in processing\r\n"));
+		else
+			nwrite = write(client_comm_fd, 
+				"226 Transfer complete\r\n", 
+				strlen("226 Transfer complete\r\n"));
+
+		/* Close the associated file descriptors */
+		close(file_fd);
+		close(data_fd);
+	}
+
+}
+
+/* Handle for the RETR FTP command */
+void
+RETR_HANDLER(char * input_command, int client_comm_fd,
+	int binary_flag, int active_flag, char * PORT,
+	int data_fd, struct sockaddr_storage client_addr)
+{
+	print_debug("Client has issued command RETR!\n");
+
+	ssize_t nwrite;
+	int err;
+	// Get the specific filename for retrieval 
+	char * filename = strtok(NULL, " ");
+
+	// Open the file, returning an error to the client if something went wrong
+	int file_fd = open(filename, O_RDONLY);
+	if (file_fd < 0)
+	{
+		nwrite = write(client_comm_fd, 
+			"550 Error during file access \r\n", 
+			strlen("550 Error during file access \r\n"));
+		if (nwrite < 0)
+			error("Error on communicating \
+				file access error code to client.\n");
+	}
+
+	// Inform the client that we are ready to transfer the requested file.
+	else
+	{
+		nwrite = write(client_comm_fd, 
+			"150 Opening file transfer data connection\r\n", 
+			strlen("150 Opening file transfer data connection\r\n"));
+
+		if (nwrite < 0)
+			error("Error on communicating file transfer \
+				information to client.\n");
+	}
+
+	/* Handle the case where the client has currently 
+		chosen passive mode to be their
+		desired form of data transfer */
+	if (!active_flag)
+	{
+		struct sockaddr_storage temp;
+		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
+		/* 'Accept' the incoming client connection to our established socket */
+		int client_data_fd = accept(data_fd, (struct sockaddr *)&temp, &len);
+		if (client_data_fd < 0)
+			error("Error on accepting passive \
+				client connection for data transfer during RETR.\n");	
+
+		/* Call the RETR command, and if we encounter 
+			an error during data transfer, 
+			we inform the client */
+		err = RETR(file_fd, client_data_fd, binary_flag);
+		if (err < 0)
+			nwrite = write(client_comm_fd, 
+				"451 Local error in file processing\r\n", 
+				strlen("451 Local error in file processing\r\n"));
+		else
+			nwrite = write(client_comm_fd, 
+				"226 Transfer complete\r\n", 
+				strlen("226 Transfer complete\r\n"));
+
+		/* Close the file descriptor to the file, 
+			and the socket descriptors that connect to the client.
+			Note that this ends the current passive mode connection; 
+			a new connection will have to be established
+			before performing further transfers */
+		close(file_fd);
+		close(client_data_fd);
+		close(data_fd);
+	}
+
+	/* Handle the case where the client has currently chosen 
+		active mode to be their
+		desired form of data transfer */
+	else
+	{
+		socklen_t len = sizeof (struct sockaddr_storage);
+
+		/* Keep track of the IP address and the port of the client: 
+			we will be transferring the bytes
+			of the file to this port */
+		char hoststr[NI_MAXHOST];
+		char portstr[NI_MAXSERV];
+
+		/* Obtain the IP Address and port number of the 
+			current client connection */
+		err = getnameinfo((struct sockaddr *)&(client_addr), 
+			len, hoststr, sizeof (hoststr), portstr, sizeof (portstr), 
+			NI_NUMERICHOST | NI_NUMERICSERV);
+
+		/* Handle error situations in processing the client connection */
+		if (err != 0) 
+		{
+			nwrite = write(client_comm_fd, 
+				"425 can't open data connection\r\n", 
+				strlen("425 can't open data connection\r\n"));
+			if (nwrite < 0)
+				error("Error on communicating data \
+						connection error to client.\n");
+			return;
+		}
+
+		/* Successfully obtained information regarding the 
+			client's connection */
+		else
+		{
+			/* Use a helper function to connect to the client's IP Address, 
+				but in a *different* port than the regular command transfers. 
+				This different port, used for data transfers, was 
+				provided earlier via the PORT command */
+			data_fd = get_active_client_connection(hoststr, PORT);
+
+			/* If we for some reason fail when trying to connect to the 
+				client port for active FTP, we inform the client */
+			if (data_fd < 0)
+			{
+				nwrite = write(client_comm_fd, 
+					"425 can't open active data connection\r\n", 
+					strlen("425 can't open active data connection\r\n"));
+				return;
+			}
+		}
+
+		/* After obtaining the active client connection, 
+			we call the RETR function to pass the bytes 
+			of the file to the client */
+		err = RETR(file_fd, data_fd, binary_flag);
+		if (err < 0)
+			nwrite = write(client_comm_fd, 
+				"451 Local error in file processing\r\n", 
+				strlen("451 Local error in file processing\r\n"));
+		else
+			nwrite = write(client_comm_fd, 
+				"226 Transfer complete\r\n", 
+				strlen("226 Transfer complete\r\n"));
+
+		/* Close the associated file descriptors */
+		close(file_fd);
+		close(data_fd);
+	}
+}
+
+/* Used to accomplish the RMD FTP command */
+void
+RMD_HANDLER(int client_comm_fd)
+{
+	print_debug("Client has issued command RMD!\n");
+
+	ssize_t nwrite;
+	int err;
+	/* Obtain the directory name for removal */
+	const char * dirname = strtok(NULL, " ");
+
+	/* Then simply remove the specified directory */
+	err = rmdir(dirname);
+	if (err < 0)
+		nwrite = write(client_comm_fd, 
+			"451 Local error in processing\r\n", 
+			strlen("451 Local error in processing\r\n"));
+	else
+		nwrite = write(client_comm_fd, 
+			"226 Removal complete\r\n", 
+			strlen("226 Removal complete\r\n"));
+}
+
+/* Used to accomplish the MKD FTP command */
+void
+MKD_HANDLER(int client_comm_fd)
+{
+	print_debug("Client has issued command MKD!\n");
+
+	ssize_t nwrite;
+	int err;
+	/* Obtain the directory name for removal */
+	const char * dirname = strtok(NULL, " ");
+
+	/* TODO: How to get the mode of the new directory? */
+
+	/* Then simply make the specified new directory */
+	err = mkdir(dirname, 0644);
+	if (err < 0)
+		nwrite = write(client_comm_fd, 
+			"451 Local error in processing\r\n", 
+			strlen("451 Local error in processing\r\n"));
+	else
+		nwrite = write(client_comm_fd, 
+			"226 Directory creation complete\r\n", 
+			strlen("226 Directory creation complete\r\n"));
+}
+
 
 /* Returns a list of the contents of the inputted working directory;
 	used in conjunction with the LIST command
@@ -1047,12 +1217,13 @@ LIST(char * dir_name)
 
 	if (d == 0)
 	{
-		#ifdef DEBUG
-		printf("Error opening directory: %s\n", dir_name);
-		fflush(stdout);
-		#endif
+		print_debug("Error opening directory: ");
+		print_debug(dir_name);
+		print_debug("\n");
 
 		/* TODO: RETURN ERROR MESSAGE TO CLIENT INSTEAD OF EXITING */
+		printf("%s\n",dir_name);
+		fflush(stdout);
 		error("Error opening directory for client LIST command");
 	}
 
@@ -1084,11 +1255,12 @@ LIST(char * dir_name)
 	closedir(d);
 
 	/* Return the directory contents */
-	return full_list;
+	return (full_list);
 }
 
 
-/* Initialize a 'listen'ing server for a specific port number on the local machine;
+/* Initialize a 'listen'ing server for a 
+	specific port number on the local machine;
 	used in conjunction with the Passive FTP module
 	*/
 int
@@ -1096,7 +1268,7 @@ initiate_server(long port)
 {
 	int err, fd =0;
 	struct addrinfo hints;struct addrinfo * res;struct addrinfo * res_original;
-	memset(&hints, 0, sizeof(struct addrinfo));
+	memset(&hints, 0, sizeof (struct addrinfo));
 
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
@@ -1104,17 +1276,17 @@ initiate_server(long port)
 	hints.ai_flags = AI_PASSIVE;
 
 	/* Create a string version of the port number */
-	char port_buffer[strlen("65535")];
-	char * port_pointer = port_buffer;
-	sprintf(port_pointer, "%ld", port);
+	// char port_buffer[strlen("65535")];
+	char * port_pointer = NULL;
+	asprintf(&port_pointer, "%ld", port);
 
-	#ifdef DEBUG
-	printf("Initiating server on port: %s\n",port_pointer);
-	fflush(stdout);
-	#endif
+	print_debug("Initiating server on port: ");
+	print_debug(port_pointer);
+	print_debug("\n");
 
 
-	/* Use getaddrinfo to fill out the IP Address and port number information */
+	/* Use getaddrinfo to fill out the IP Address 
+		and port number information */
 	err = getaddrinfo(NULL, port_pointer, &hints, &res_original);
 	if (err)
 	{
@@ -1140,7 +1312,8 @@ initiate_server(long port)
 			if (err == -1)
 				error("Error on binding during initiate server.\n");
 
-			/* Start 'listen'ing so that clients can start connecting to the endpoint
+			/* Start 'listen'ing so that clients 
+				can start connecting to the endpoint
 				'accept'ing will be done in the next phase */
 			err = listen(fd, MAX_NUM_CONNECTED_CLIENTS);
 			if (err == -1)
@@ -1148,7 +1321,8 @@ initiate_server(long port)
 			break;
 		}
 
-		/* IPV6 address generated, same process as with IPV4, but customized for IPV6 */
+		/* IPV6 address generated, same process as with IPV4, 
+			but customized for IPV6 */
 		if (res->ai_family == AF_INET6)
 		{
 			fd = socket(AF_INET6, SOCK_STREAM, 0);
@@ -1169,10 +1343,13 @@ initiate_server(long port)
 	/* Free allocated resources, and return the socket file descriptor */
 	freeaddrinfo(res_original);
 	res_original = NULL;
-	return fd;
+	free(port_pointer);
+	port_pointer = NULL;
+	return (fd);
 }
 
-/* Helper function to store a file; it receives bytes from the data file descriptor argument,
+/* Helper function to store a file; it 
+	receives bytes from the data file descriptor argument,
 	and writes the bytes into the file descriptor */
 int
 STOR(int file_fd, int data_fd, int binary_flag)
@@ -1187,11 +1364,13 @@ STOR(int file_fd, int data_fd, int binary_flag)
 
 		FILE * data_stream = fdopen(data_fd,"r+");
 		if (!data_stream)
-			return -1;
+			return (-1);
 
-		/* ASCII Mode - read the file's contents line by line, replacing new line feeds 
+		/* ASCII Mode - read the file's contents line by line, 
+			replacing new line feeds 
 			with a \r\n */
-		while ( (current_length = readline(data_stream,buf_ptr,current_length)) != -1)
+		while ( (current_length = 
+				readline(data_stream,buf_ptr,current_length)) != -1)
 		{
 
 			char * read_content = calloc(current_length+2,1);
@@ -1199,7 +1378,7 @@ STOR(int file_fd, int data_fd, int binary_flag)
 
 			nwrite = write(file_fd, read_content, strlen(read_content));
 			if (nwrite < 0)
-				return -1;
+				return (-1);
 
 			free(read_content);
 			read_content = NULL;
@@ -1211,7 +1390,7 @@ STOR(int file_fd, int data_fd, int binary_flag)
 		sprintf(read_content,"%s\r\n",buf_ptr);
 		nwrite = write(file_fd, read_content, strlen(read_content));
 		if (nwrite < 0)
-			return -1;
+			return (-1);
 		free(read_content);
 		read_content = NULL;
 
@@ -1245,7 +1424,7 @@ STOR(int file_fd, int data_fd, int binary_flag)
 		// Write the file's contents
 		nwrite = write(file_fd, contents, size);
 		if (nwrite < 0)
-			return -1;
+			return (-1);
 
 		// Clean up
 		fclose(data_stream); 
@@ -1253,10 +1432,11 @@ STOR(int file_fd, int data_fd, int binary_flag)
 		contents=NULL;
 	}
 
-	return 0;
+	return (0);
 }
 
-/* Command to obtain bytes from the file descriptor, and write it into the data descriptor. 
+/* Command to obtain bytes from the file descriptor, 
+	and write it into the data descriptor. 
 	Used in conjunction with a client request to get a file */
 int 
 RETR(int file_fd, int data_fd, int binary_flag)
@@ -1265,24 +1445,26 @@ RETR(int file_fd, int data_fd, int binary_flag)
 
 	if (!binary_flag)
 	{
-		/* Instantiate buffer for holding partial contents of read input */
+		/* Instantiate buffer for holding 
+			partial contents of read input */
 		int current_length = 4096;
 		char * buf_ptr = calloc(current_length,1);
 
 		FILE * file_stream = fdopen(file_fd,"r");
 		if (!file_stream)
-			return -1;
+			return (-1);
 
-		/* ASCII Mode - read the file's contents line by line, replacing new line feeds 
-			with a \r\n */
-		while ( (current_length = readline(file_stream,buf_ptr,current_length)) != -1)
+		/* ASCII Mode - read the file's contents line by line, 
+			replacing new line feeds with a \r\n */
+		while ( (current_length = readline(file_stream,
+				buf_ptr,current_length)) != -1)
 		{
 			char * read_content = calloc(current_length+2,1);
 			sprintf(read_content,"%s\r\n",buf_ptr);
 
 			nwrite = write(data_fd, read_content, strlen(read_content));
 			if (nwrite < 0)
-				return -1;
+				return (-1);
 
 			free(read_content);
 			read_content = NULL;
@@ -1294,7 +1476,7 @@ RETR(int file_fd, int data_fd, int binary_flag)
 		sprintf(read_content,"%s\r\n",buf_ptr);
 		nwrite = write(data_fd, read_content, strlen(read_content));
 		if (nwrite < 0)
-			return -1;
+			return (-1);
 		free(read_content);
 		read_content = NULL;
 
@@ -1328,7 +1510,7 @@ RETR(int file_fd, int data_fd, int binary_flag)
 		// Write the file's contents to the client
 		nwrite = write(data_fd, contents, size);
 		if (nwrite < 0)
-			return -1;
+			return (-1);
 
 		// Clean up
 		fclose(file_stream); 
@@ -1336,234 +1518,5 @@ RETR(int file_fd, int data_fd, int binary_flag)
 		contents=NULL;
 	}	
 
-	return 0;
-}
-
-/* Generates a random port number that is usable by user applications.
-	Namely, will generate a random number between 1000 - 65535
-	*/
-long
-get_random_port()
-{
-	int a = 0;
-    while (a < 1000)
-    {
-        srand( time(NULL) );
-        a = rand();
-        a = a % 65535;
-    }
-    return a;
-}
-
-/* Return an IP Address + Port endpoint combination in a format that is 
-	normative for FTP servers; an example would be (187,165,1,12,210,19)
-	*/
-char *
-get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
-{
-	/* Use getifaddrs to get network interfaces of the local machine and combine it
-		with the inputted port */
-	struct ifaddrs * ifAddrStruct=NULL;
-    struct ifaddrs * ifa=NULL;
-    void * tmpAddrPtr=NULL;
-    char * complete_address_buffer;
-
-    getifaddrs(&ifAddrStruct);
-
-    /* Be ready to accept both IPV4 and IPV6 interfaces; IPV4 is default */
-    int ipv4 = 1;
-    char address_buffer_ipv4[INET_ADDRSTRLEN];
-    char address_buffer_ipv6[INET6_ADDRSTRLEN];
-
-    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) 
-    {
-        if (!ifa->ifa_addr)
-            continue;
-
-        if (ifa->ifa_addr->sa_family == AF_INET) 
-        {
-        	// We don't want local interfaces, but rather the interface visible to the internet
-            if (strcmp(ifa->ifa_name,"lo0") ==0)
-                continue;
-
-            // We obtain a valid IPV4 address
-            tmpAddrPtr=&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
-            inet_ntop(AF_INET, tmpAddrPtr, address_buffer_ipv4, INET_ADDRSTRLEN);
-        } 
-
-        /* Analogously, we perform the same procedure with IPV6 */
-        else if (ifa->ifa_addr->sa_family == AF_INET6) 
-        { 
-        	/* If the client specified non-extended passive mode, we must return only
-        		IPv4 Addresses */
-        	if (IPV4ONLY)
-        		continue;
-
-            if (strcmp(ifa->ifa_name,"lo0") ==0)
-                continue;
-
-            tmpAddrPtr=&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
-            inet_ntop(AF_INET6, tmpAddrPtr, address_buffer_ipv6, INET6_ADDRSTRLEN);
-
-            // Disable IPV4
-            ipv4 = 0;
-        } 
-    }
-
-    /* Some error occured, and the search for local interfaces failed */
-    if (ifAddrStruct == NULL)
-    	return NULL;
-
-    /* Now we do some string manipulation so that we get the IP Address and the port
-    	into the format we need for FTP. This procedure looks ostensibly complex, but is 
-    	actually just simple moving around of strings and characters */
-    char * buf_ptr = NULL;
-    if (ipv4)
-    	buf_ptr = address_buffer_ipv4;
-    else
-    	buf_ptr = address_buffer_ipv6;
-
-    for (int i=0; i < strlen(buf_ptr); i++)
-    {
-    	if (buf_ptr[i] == '.')
-    		buf_ptr[i] = ',';
-    }
-
-    if (ipv4)
-    {
-    	complete_address_buffer = calloc(INET_ADDRSTRLEN+15,1);
-
-    	strcat(complete_address_buffer, "(");
-    	strcat(complete_address_buffer,buf_ptr);
-    	strcat(complete_address_buffer,",");
-
-    	/* Manipulate the port number to split it into upper bits and lower bits */
-    	unsigned int lower_bits = port & 0xFF;
-    	char * lower_bits_string = calloc(4,1);
-    	sprintf(lower_bits_string,"%d",lower_bits);
-
-    	unsigned int higher_bits = port & 0xFF00;
-    	higher_bits = higher_bits >> 8;
-    	char * higher_bits_string = calloc(4,1);
-    	sprintf(higher_bits_string,"%d",higher_bits);
-
-  		strcat(complete_address_buffer,higher_bits_string);
-    	strcat(complete_address_buffer,",");
-    	strcat(complete_address_buffer,lower_bits_string);
-    	strcat(complete_address_buffer,")");
-    	strcat(complete_address_buffer,"\0");
-    }
-   	else
-   	{
-   		complete_address_buffer = calloc(INET6_ADDRSTRLEN+15,1);
-
-   		strcat(complete_address_buffer, "(");
-   		strcat(complete_address_buffer,"|||");
-
-    	char * port_string = calloc(6,1);
-    	sprintf(port_string,"%d",port);
-    	strcat(complete_address_buffer,port_string);
-
-    	strcat(complete_address_buffer,"|)");
-    	strcat(complete_address_buffer,"\0");
-    	free(port_string);
-   	}
-
-    /* Deallocate resources, and return the formatted IP Address and Port */
-    freeifaddrs(ifAddrStruct);
-    return complete_address_buffer;
-}
-
-/* Returns a file descriptor that holds a socket connection to the specified
-	IP Address and port. Used in conjunction with active mode transfers where
-	we would like to connect to the same client IP Address, but in a different port. */
-int
-get_active_client_connection(const char * ip_address, const char * port)
-{
-
-	#ifdef DEBUG
-	printf("Establishing Active client connection, IP Address: %s\n", ip_address);
-	printf("Establishing Active client connection, Port: %s\n", port);
-	fflush(stdout);
-	#endif
-
-	/* Initialize various structures and parameters used for the getaddrinfo/4 function */
-	int err, fd=-1;
-	struct addrinfo hints;struct addrinfo * res;struct addrinfo * res_original;
-	memset(&hints, 0, sizeof(struct addrinfo));
-
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_flags = AI_PASSIVE;
-
-	/* Get the socket address structure corresponding to the given IP Address and port */
-	err = getaddrinfo(ip_address, port, &hints, &res_original);
-	if (err)
-	{
-		return -1;
-	}
-
-	/* Parse the returned structures until we reach one that is either IPV4 or IPV6 format */
-	for (res = res_original; res!=NULL; (res=res->ai_next))
-	{
-		if ( (res->ai_family != AF_INET) && (res->ai_family != AF_INET6) )
-			continue;
-		else
-			break;
-	}
-
-	/* Establish an IPV4 connection to the client socket */
-	if (res->ai_family == AF_INET)
-	{
-		fd = socket(AF_INET, SOCK_STREAM, 0);
-		if (fd == -1)
-			error("Error in IPV4 socket establishment in active client connection.\n");
-		err = connect(fd, res->ai_addr, res->ai_addrlen);
-		if (err < 0)
-			error("Error in 'connect'ing to the active client port with IPV4.\n");
-		
-	}
-
-	/* Establish an IPV6 connection to the client socket */
-	if (res->ai_family == AF_INET6)
-	{
-		fd = socket(AF_INET6, SOCK_STREAM, 0);
-		if (fd == -1)
-			error("Error in IPV6 socket establishment in active client connection.\n");
-		err = connect(fd, res->ai_addr, res->ai_addrlen);
-		if (err < 0)
-			error("Error in 'connect'ing to the active client port with IPV6.\n");
-	}
-
-	/* Return the obtained socket file descriptor corresponding to our active client connection */
-	return fd;
-}
-
-/* Reads a line from the inputted file and outputs the contents into the buffer */
-int readline(FILE *f, char *buffer, int len)
-{
-  	int counter = 0;
-  	int new_length = len;
-
-  	int c = fgetc(f);
-  	while ( !((feof(f)) || (c == '\r') || (c == '\n')) )
-  	{
-  		buffer[counter] = c; 
-
-  		if ( (counter + 1) > len)
-  		{
-  			buffer = realloc(buffer, counter + 4096);
-  			new_length = counter + 4096;
-  		}
-  		counter++;
-  		c = fgetc(f);
-  	}
-
-  	if (feof(f))
-  		return -1;
-  	else
-  	{
-  		return new_length;
-  	}   
+	return (0);
 }

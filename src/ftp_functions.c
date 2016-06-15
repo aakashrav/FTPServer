@@ -1352,7 +1352,7 @@ initiate_server(long port)
 	struct addrinfo hints;struct addrinfo * res;struct addrinfo * res_original;
 	memset(&hints, 0, sizeof (struct addrinfo));
 
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = AF_INET6;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;

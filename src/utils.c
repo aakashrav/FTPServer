@@ -259,7 +259,9 @@ get_active_client_connection(const char * ip_address, const char * port)
 	/* Initialize various structures and parameters 
 		used for the getaddrinfo/4 function */
 	int err, fd=-1;
-	struct addrinfo hints;struct addrinfo * res;struct addrinfo * res_original;
+	struct addrinfo hints;
+  struct addrinfo * res;
+  struct addrinfo * res_original;
 	memset(&hints, 0, sizeof (struct addrinfo));
 
 	hints.ai_family = AF_UNSPEC;

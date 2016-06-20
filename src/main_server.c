@@ -74,7 +74,8 @@ main(int argc, char * argv[])
 		if (err == -1)
 			error("Error on poll command in the main server!\n");
 
-		print_debug("Main server received connection and finished poll'ing!\n");
+		print_debug("Main server received connection \
+			and finished poll'ing!\n");
 
 		struct sockaddr_storage client_addr;
 

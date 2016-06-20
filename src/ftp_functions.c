@@ -237,7 +237,8 @@ ftp_thread(void * args)
 
 		ssize_t nwrite, nread;
 		// Send a welcome message to the client
-		nwrite = write(current_context.client_comm_fd, "220 CoolFTPServer\r\n",
+		nwrite = write(current_context.client_comm_fd, 
+			"220 CoolFTPServer\r\n",
 			strlen("200 CoolFTPServer\r\n"));
 		if (nwrite < 0)
 			error("Error on writing initial connection success status to \
@@ -384,7 +385,8 @@ PWD_HANDLER(client_context_t * current_context)
 	strcat(full_message, working_directory);
 	strcat(full_message,"\"");
 	strcat(full_message, "\r\n");
-	ssize_t nwrite = write(current_context->client_comm_fd,full_message,strlen(full_message));
+	ssize_t nwrite = write(current_context->client_comm_fd,full_message,
+		strlen(full_message));
 	if (nwrite < 0)
 		error("Error on sending current working directory to client\n");
 
@@ -426,7 +428,8 @@ PASV_HANDLER(client_context_t * current_context)
 	strcat(full_client_message, "227 Entering passive mode. ");
 	strcat(full_client_message, local_ip_address);
 	strcat(full_client_message, "\r\n");
-	ssize_t nwrite = write(current_context->client_comm_fd,full_client_message,
+	ssize_t nwrite = write(current_context->client_comm_fd,
+		full_client_message,
 		strlen(full_client_message));
 	if (nwrite < 0)
 		error("Error on sending passive server mode status to client\n");
@@ -496,7 +499,8 @@ CWD_HANDLER(client_context_t * current_context)
 	print_debug(current_context->input_command);
 	print_debug(" at the request of the client\n");
 
-	char * new_path = calloc(strlen(current_context->current_working_directory)
+	char * new_path = calloc(
+		strlen(current_context->current_working_directory)
 		+ strlen(current_context->input_command) + 2,1);
 
 	strcat(new_path,current_context->current_working_directory);
@@ -622,7 +626,8 @@ LIST_HANDLER(client_context_t * current_context)
 	ssize_t nwrite;
 	int err;
 	/* Get the contents of the current working directory */
-	char * directory_list = LIST(current_context->current_working_directory);
+	char * directory_list = 
+		LIST(current_context->current_working_directory);
 
 	/* Format and send the status message to the client,
 		along with the contents
@@ -647,7 +652,8 @@ LIST_HANDLER(client_context_t * current_context)
 			error("Error on accepting passive client connection \
 				for data transfer during LIST\n");
 		else
-			nwrite = write(current_context->client_comm_fd,"150 Opening ASCII mode \
+			nwrite = write(current_context->client_comm_fd,
+				"150 Opening ASCII mode \
 				data connection\r\n",strlen("150 Opening ASCII \
 					mode data connection\r\n"));
 
@@ -689,7 +695,8 @@ LIST_HANDLER(client_context_t * current_context)
 		/* Handle error situations in processing the client connection */
 		if (err != 0)
 		{
-			nwrite = write(current_context->client_comm_fd, "425 can't open data \
+			nwrite = write(current_context->client_comm_fd, 
+				"425 can't open data \
 				connection\r\n", strlen("425 can't open data connection\r\n"));
 			if (nwrite < 0)
 				error("Error on communicating data connection \
@@ -1131,7 +1138,8 @@ RETR_HANDLER(client_context_t * current_context)
 		struct sockaddr_storage temp;
 		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
 		/* 'Accept' the incoming client connection to our established socket */
-		int client_data_fd = accept(current_context->data_fd, (struct sockaddr *)&temp, &len);
+		int client_data_fd = accept(current_context->data_fd, 
+			(struct sockaddr *)&temp, &len);
 		if (client_data_fd < 0)
 			error("Error on accepting passive \
 				client connection for data transfer during RETR.\n");
@@ -1215,7 +1223,8 @@ RETR_HANDLER(client_context_t * current_context)
 		/* After obtaining the active client connection,
 			we call the RETR function to pass the bytes
 			of the file to the client */
-		err = RETR(file_fd, current_context->data_fd, current_context->binary_flag);
+		err = RETR(file_fd, current_context->data_fd, 
+			current_context->binary_flag);
 		if (err < 0)
 			nwrite = write(current_context->client_comm_fd,
 				"451 Local error in file processing\r\n",
@@ -1349,7 +1358,8 @@ int
 initiate_server(long port)
 {
 	int err, fd =0;
-	struct addrinfo hints;struct addrinfo * res;struct addrinfo * res_original;
+	struct addrinfo hints;struct addrinfo * res;
+	struct addrinfo * res_original;
 	memset(&hints, 0, sizeof (struct addrinfo));
 
 	hints.ai_family = AF_INET6;

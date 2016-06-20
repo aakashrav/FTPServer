@@ -88,11 +88,11 @@ main(int argc, char * argv[])
 			socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
 			client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
 				&len);
-            if (client_fd < 0)
-            {
-            	destroy();
-            	error("Error on accepting client connection in main.\n");
-            }
+			if (client_fd < 0)
+			{
+				destroy();
+				error("Error on accepting client connection in main.\n");
+			}
 
 			/* Lock the job queue mutex */
 			err = pthread_mutex_lock(job_queue_lock);

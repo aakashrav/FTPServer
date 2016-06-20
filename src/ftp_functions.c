@@ -268,10 +268,10 @@ ftp_thread(void * args)
 
 			/* Reset the buffer to receive the next command,
 				removing any residual characters */
-         	memset(buf_ptr,0,sizeof (buf));
-         	print_debug("Active flag\n");
-         	printf("%d",current_context.active_flag);
-         	print_debug("\n");
+			memset(buf_ptr,0,sizeof (buf));
+			print_debug("Active flag\n");
+			printf("%d",current_context.active_flag);
+			print_debug("\n");
 		}
 
 		/* Client has either closed his/her side of
@@ -407,24 +407,24 @@ PASV_HANDLER(client_context_t * current_context)
 	current_context->data_port = get_random_port();
 
 	/* Generate a socket that is listening on the randomly generated port */
- 	current_context->data_fd = initiate_server(current_context->data_port);
+	current_context->data_fd = initiate_server(current_context->data_port);
 	if (current_context->data_fd < 0)
 		error("Error initiating passive FTP socket!\n");
 
 	/* Get formatted IP Address + Port to send to the client.
 		We also specify that we require IPv4 only, since we are not in
 		extended passive mode. */
- 	char * local_ip_address =
- 		get_formatted_local_ip_address(current_context->data_port,1);
+	char * local_ip_address =
+		get_formatted_local_ip_address(current_context->data_port,1);
 
- 	if (local_ip_address == NULL)
- 		error("Error on getting formatted local IP Address\n");
+	if (local_ip_address == NULL)
+		error("Error on getting formatted local IP Address\n");
 
- 	/* Construct status message for client, informing him/her of the
- 		local endpoint of the passive FTP */
- 	char * full_client_message =
- 	(char *) calloc(strlen("227 Entering passive mode. \r\n") + \
- 		strlen(local_ip_address),1);
+	/* Construct status message for client, informing him/her of the
+		local endpoint of the passive FTP */
+	char * full_client_message =
+	(char *) calloc(strlen("227 Entering passive mode. \r\n") + \
+		strlen(local_ip_address),1);
 	strcat(full_client_message, "227 Entering passive mode. ");
 	strcat(full_client_message, local_ip_address);
 	strcat(full_client_message, "\r\n");
@@ -453,22 +453,22 @@ EPSV_HANDLER(client_context_t * current_context)
 
 	/* Generate a socket that is listening on the
 		randomly generated port */
- 	current_context->data_fd = initiate_server(current_context->data_port);
+	current_context->data_fd = initiate_server(current_context->data_port);
 	if (current_context->data_fd < 0)
 		error("Error initiating passive FTP socket!\n");
 
 	/* Get formatted IP Address + Port to send to the client. */
- 	char * local_ip_address =
- 		get_formatted_local_ip_address(current_context->data_port,0);
+	char * local_ip_address =
+		get_formatted_local_ip_address(current_context->data_port,0);
 
- 	if (local_ip_address == NULL)
- 		error("Error on getting formatted local IP Address\n");
+	if (local_ip_address == NULL)
+		error("Error on getting formatted local IP Address\n");
 
- 	/* Construct status message for client, informing him/her of the
- 		local endpoint of the passive FTP */
- 	char * full_client_message =
- 	(char *) calloc(strlen("229 Entering passive mode. \r\n")
- 	 + strlen(local_ip_address),1);
+	/* Construct status message for client, informing him/her of the
+		local endpoint of the passive FTP */
+	char * full_client_message =
+	(char *) calloc(strlen("229 Entering passive mode. \r\n")
+	+ strlen(local_ip_address),1);
 	strcat(full_client_message, "229 Entering passive mode. ");
 	strcat(full_client_message, local_ip_address);
 	strcat(full_client_message, "\r\n");
@@ -527,8 +527,8 @@ CWD_HANDLER(client_context_t * current_context)
 		current_context->current_working_directory = new_path;
 	}
 
-    if (nwrite < 0)
-	    error("Error on writing CWD status to client\n");
+	if (nwrite < 0)
+		error("Error on writing CWD status to client\n");
 }
 
 /* Handler function for the PORT FTP command */
@@ -572,9 +572,9 @@ PORT_HANDLER(client_context_t * current_context)
 		"200 Entering active mode\r\n",
 		strlen("200 Entering active mode\r\n"));
 
-    if (nwrite < 0)
-	    error("Error on writing active FTP success \
-	    	status to client\n");
+	if (nwrite < 0)
+		error("Error on writing active FTP success \
+			status to client\n");
 
 	/* Switch the active FTP flag on */
 	current_context->active_flag = 1;
@@ -598,9 +598,9 @@ TYPE_HANDLER(client_context_t * current_context)
 			"200 Entering ASCII mode\r\n",
 			strlen("200 Entering ASCII mode\r\n"));
 
-    	if (nwrite < 0)
-	   		error("Error on writing binary type success \
-	   			status to client\n");
+	if (nwrite < 0)
+		error("Error on writing binary type success \
+			status to client\n");
 	}
 	/* Binary type */
 	else
@@ -611,9 +611,9 @@ TYPE_HANDLER(client_context_t * current_context)
 			"200 Entering binary mode\r\n",
 			strlen("200 Entering binary mode\r\n"));
 
-    	if (nwrite < 0)
-	   		error("Error on writing binary \
-	   			type success status to client\n");
+	if (nwrite < 0)
+		error("Error on writing binary \
+			type success status to client\n");
 	}
 }
 

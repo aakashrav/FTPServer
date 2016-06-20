@@ -237,7 +237,7 @@ ftp_thread(void * args)
 
 		ssize_t nwrite, nread;
 		// Send a welcome message to the client
-		nwrite = write(current_context.client_comm_fd, 
+		nwrite = write(current_context.client_comm_fd,
 			"220 CoolFTPServer\r\n",
 			strlen("200 CoolFTPServer\r\n"));
 		if (nwrite < 0)
@@ -626,7 +626,7 @@ LIST_HANDLER(client_context_t * current_context)
 	ssize_t nwrite;
 	int err;
 	/* Get the contents of the current working directory */
-	char * directory_list = 
+	char * directory_list =
 		LIST(current_context->current_working_directory);
 
 	/* Format and send the status message to the client,
@@ -695,7 +695,7 @@ LIST_HANDLER(client_context_t * current_context)
 		/* Handle error situations in processing the client connection */
 		if (err != 0)
 		{
-			nwrite = write(current_context->client_comm_fd, 
+			nwrite = write(current_context->client_comm_fd,
 				"425 can't open data \
 				connection\r\n", strlen("425 can't open data connection\r\n"));
 			if (nwrite < 0)
@@ -1138,7 +1138,7 @@ RETR_HANDLER(client_context_t * current_context)
 		struct sockaddr_storage temp;
 		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
 		/* 'Accept' the incoming client connection to our established socket */
-		int client_data_fd = accept(current_context->data_fd, 
+		int client_data_fd = accept(current_context->data_fd,
 			(struct sockaddr *)&temp, &len);
 		if (client_data_fd < 0)
 			error("Error on accepting passive \
@@ -1223,7 +1223,7 @@ RETR_HANDLER(client_context_t * current_context)
 		/* After obtaining the active client connection,
 			we call the RETR function to pass the bytes
 			of the file to the client */
-		err = RETR(file_fd, current_context->data_fd, 
+		err = RETR(file_fd, current_context->data_fd,
 			current_context->binary_flag);
 		if (err < 0)
 			nwrite = write(current_context->client_comm_fd,

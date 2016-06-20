@@ -14,7 +14,7 @@ void handler(int signal)
 	QUIT_FLAG=1;
 }
 
-void 
+void
 usage()
 {
 	printf("Usage: /sftp2_server <port>\n");
@@ -41,7 +41,7 @@ main(int argc, char * argv[])
 		error("Error registering signal handler for SIGUSR2.\n");
 	}
 
-	// Obtain the port that the server will run on 
+	// Obtain the port that the server will run on
 	long port = atol(argv[1]);
 	int err;
 
@@ -60,7 +60,7 @@ main(int argc, char * argv[])
 		pthread_create(&arr[i], NULL, ftp_thread, NULL);
 	}
 
-	/* Create a server polling architecture so that we 
+	/* Create a server polling architecture so that we
 		don't waste system resources on busy waits */
 	struct pollfd fds[1];
 	struct pollfd server_poll_structure = {server_fd, POLLIN, 0};
@@ -86,7 +86,7 @@ main(int argc, char * argv[])
 		{
 			/* Accept the latest client connection */
 			socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
-			client_fd = accept(server_fd, (struct sockaddr *)&client_addr, 
+			client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
 				&len);
             if (client_fd < 0)
             {

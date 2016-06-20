@@ -15,13 +15,13 @@
 #include <sys/dir.h>
 #include <sys/stat.h>
 #include <ifaddrs.h>
-#include <netinet/in.h> 
-#include <string.h> 
+#include <netinet/in.h>
+#include <string.h>
 #include <arpa/inet.h>
 
 /* Number of threads in the thread pool */
 #define NUM_THREADS 5
-/* Maximum number of connected clients to the server; 
+/* Maximum number of connected clients to the server;
 	used in the 'listen' system call */
 #define MAX_NUM_CONNECTED_CLIENTS 5
 
@@ -42,9 +42,9 @@ typedef struct client_context {
 	int client_data_fd;
 } client_context_t;
 
-/* Returns the appropriate handler for a certain 
+/* Returns the appropriate handler for a certain
 	command from the client */
-void 
+void
 (*get_handler(char * command))(client_context_t *);
 
 /* Initlialize mutexes, conditional variables, and job queue */
@@ -56,7 +56,7 @@ void *
 ftp_thread(void * args);
 
 /* Initiates a 'listen'ing server socket at the given port */
-int 
+int
 initiate_server(long port);
 
 /* Handler function for the USER FTP command */
@@ -115,7 +115,7 @@ void
 RETR_HANDLER(client_context_t * current_context);
 
 /* Used to accomplish the RETR FTP command */
-int 
+int
 RETR(int file_fd, int data_fd, int binary_flag);
 
 /* Handle for the LIST FTP command */
@@ -135,11 +135,11 @@ int
 STOR(int file_fd, int data_fd, int binary_flag);
 
 /* Handle for the APPE FTP command */
-void 
+void
 APPE_HANDLER(client_context_t * current_context);
 
 /* Used to accomplish the RMD FTP command */
-void 
+void
 RMD_HANDLER(client_context_t * current_context);
 
 /* Used to accomplish the MKD FTP command */

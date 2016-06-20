@@ -61,7 +61,7 @@ enqueue(job_t *head, int fd, struct sockaddr_storage client_addr)
 }
 
 /* Dequeue a single job from the job queue */
-job_t 
+job_t
 dequeue(job_t *head)
 {
   job_t return_job;
@@ -75,7 +75,7 @@ dequeue(job_t *head)
     jb->previous->next = nxt_job;
     if (nxt_job != NULL)
       nxt_job->previous = jb->previous;
-    
+
     return_job.fd = jb->fd;
     return_job.client_addr = jb->client_addr;
     free(jb);
@@ -92,7 +92,7 @@ dequeue(job_t *head)
 }
 
 /* Free all the remaining jobs in the queue, cleanup function */
-void 
+void
 free_jobs(job_t * head)
 {
   while (head!= NULL)
@@ -122,13 +122,13 @@ get_random_port()
     return (a);
 }
 
-/* Return an IP Address + Port endpoint combination in a format that is 
+/* Return an IP Address + Port endpoint combination in a format that is
 	normative for FTP servers; an example would be (187,165,1,12,210,19)
 	*/
 char *
 get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
 {
-	/* Use getifaddrs to get network interfaces of 
+	/* Use getifaddrs to get network interfaces of
 		the local machine and combine it
 		with the inputted port */
 	struct ifaddrs * ifAddrStruct=NULL;
@@ -143,28 +143,28 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
     char address_buffer_ipv4[INET_ADDRSTRLEN];
     char address_buffer_ipv6[INET6_ADDRSTRLEN];
 
-    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) 
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next)
     {
         if (!ifa->ifa_addr)
             continue;
 
-        if (ifa->ifa_addr->sa_family == AF_INET) 
+        if (ifa->ifa_addr->sa_family == AF_INET)
         {
-        	/* We don't want local interfaces, but rather the 
+        	/* We don't want local interfaces, but rather the
         		interface visible to the internet */
             if (strcmp(ifa->ifa_name,"lo0") ==0)
                 continue;
 
             // We obtain a valid IPV4 address
             tmpAddrPtr=&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
-            inet_ntop(AF_INET, tmpAddrPtr, address_buffer_ipv4, 
+            inet_ntop(AF_INET, tmpAddrPtr, address_buffer_ipv4,
             	INET_ADDRSTRLEN);
-        } 
+        }
 
         /* Analogously, we perform the same procedure with IPV6 */
-        else if (ifa->ifa_addr->sa_family == AF_INET6) 
-        { 
-        	/* If the client specified non-extended passive mode, 
+        else if (ifa->ifa_addr->sa_family == AF_INET6)
+        {
+        	/* If the client specified non-extended passive mode,
         		we must return only IPv4 Addresses */
         	if (IPV4ONLY)
         		continue;
@@ -173,21 +173,21 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
                 continue;
 
             tmpAddrPtr=&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
-            inet_ntop(AF_INET6, tmpAddrPtr, address_buffer_ipv6, 
+            inet_ntop(AF_INET6, tmpAddrPtr, address_buffer_ipv6,
             	INET6_ADDRSTRLEN);
 
             // Disable IPV4
             ipv4 = 0;
-        } 
+        }
     }
 
     /* Some error occured, and the search for local interfaces failed */
     if (ifAddrStruct == NULL)
     	return (NULL);
 
-    /* Now we do some string manipulation so that we get the 
-    	IP Address and the port into the format we need for FTP. 
-    	This procedure looks ostensibly complex, but is 
+    /* Now we do some string manipulation so that we get the
+    	IP Address and the port into the format we need for FTP.
+    	This procedure looks ostensibly complex, but is
     	actually just simple moving around of strings and characters */
     char * buf_ptr = NULL;
     if (ipv4)
@@ -209,7 +209,7 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
     	strcat(complete_address_buffer,buf_ptr);
     	strcat(complete_address_buffer,",");
 
-    	/* Manipulate the port number to split it into 
+    	/* Manipulate the port number to split it into
     		upper bits and lower bits */
     	unsigned int lower_bits = port & 0xFF;
     	char * lower_bits_string = calloc(4,1);
@@ -242,21 +242,21 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
     	free(port_string);
    	}
 
-    /* Deallocate resources, and return the 
+    /* Deallocate resources, and return the
     	formatted IP Address and Port */
     freeifaddrs(ifAddrStruct);
     return (complete_address_buffer);
 }
 
-/* Returns a file descriptor that holds 
-	a socket connection to the specified IP Address and port. 
+/* Returns a file descriptor that holds
+	a socket connection to the specified IP Address and port.
 	Used in conjunction with active mode transfers where
-	we would like to connect to the same client IP Address, 
+	we would like to connect to the same client IP Address,
 	but in a different port. */
 int
 get_active_client_connection(const char * ip_address, const char * port)
 {
-	/* Initialize various structures and parameters 
+	/* Initialize various structures and parameters
 		used for the getaddrinfo/4 function */
 	int err, fd=-1;
 	struct addrinfo hints;
@@ -269,7 +269,7 @@ get_active_client_connection(const char * ip_address, const char * port)
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
 
-	/* Get the socket address structure corresponding 
+	/* Get the socket address structure corresponding
 		to the given IP Address and port */
 	err = getaddrinfo(ip_address, port, &hints, &res_original);
 	if (err)
@@ -277,7 +277,7 @@ get_active_client_connection(const char * ip_address, const char * port)
 		return (-1);
 	}
 
-	/* Parse the returned structures until 
+	/* Parse the returned structures until
 		we reach one that is either IPV4 or IPV6 format */
 	for (res = res_original; res!=NULL; (res=res->ai_next))
 	{
@@ -298,7 +298,7 @@ get_active_client_connection(const char * ip_address, const char * port)
 		if (err < 0)
 			error("Error in 'connect'ing to the active \
 				client port with IPV4.\n");
-		
+
 	}
 
 	/* Establish an IPV6 connection to the client socket */
@@ -314,12 +314,12 @@ get_active_client_connection(const char * ip_address, const char * port)
 				active client port with IPV6.\n");
 	}
 
-	/* Return the obtained socket file descriptor 
+	/* Return the obtained socket file descriptor
 		corresponding to our active client connection */
 	return (fd);
 }
 
-/* Reads a line from the inputted file and outputs 
+/* Reads a line from the inputted file and outputs
 	the contents into the buffer */
 int readline(FILE *f, char *buffer, int len)
 {
@@ -329,7 +329,7 @@ int readline(FILE *f, char *buffer, int len)
   	int c = fgetc(f);
   	while ( !((feof(f)) || (c == '\r') || (c == '\n')) )
   	{
-  		buffer[counter] = c; 
+  		buffer[counter] = c;
 
   		if ( (counter + 1) > len)
   		{
@@ -345,5 +345,5 @@ int readline(FILE *f, char *buffer, int len)
   	else
   	{
   		return (new_length);
-  	}   
+  	}
 }

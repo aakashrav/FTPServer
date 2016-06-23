@@ -10,9 +10,11 @@ all: ftp2_server
 	$(CC) $(CFLAGS) $<
 
 ftp2_server: $(SERVER_OBJECTS)
+	mkdir $(EXECUTABLE_DIRECTORY)
 	$(CC) -o $(EXECUTABLE_DIRECTORY)/$@ -pthread $(SERVER_OBJECTS)
 
 clean:
 	-rm $(SERVER_OBJECTS)
 	-rm $(SERVER_SOURCES:.c=.d)
 	-rm $(EXECUTABLE_DIRECTORY)/ftp2_server
+	-rm -rf $(EXECUTABLE_DIRECTORY)

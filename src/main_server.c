@@ -48,7 +48,8 @@ main(int argc, char * argv[])
 	// Initiate the server socket running at the specified port
 	int server_fd = initiate_server(port);
 	if (server_fd < 0)
-		error("Error on initiating FTP server! Perhaps try a new port?\n");
+		error("Error on initiating FTP server!\
+			Perhaps try a new port?\n");
 
 	// Initialize the job queue and related resources
 	init();
@@ -60,7 +61,7 @@ main(int argc, char * argv[])
 		pthread_create(&arr[i], NULL, ftp_thread, NULL);
 	}
 
-	/* 
+	/*
 	 * Create a server polling architecture so that we
 	 * don't waste system resources on busy waits
 	 */
@@ -87,13 +88,16 @@ main(int argc, char * argv[])
 		if (fds[0].revents & POLLIN)
 		{
 			// Accept the latest client connection
-			socklen_t len = (socklen_t)sizeof(struct sockaddr_storage);
-			client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
+			socklen_t len =
+			(socklen_t)sizeof(struct sockaddr_storage);
+			client_fd =
+			accept(server_fd, (struct sockaddr *)&client_addr,
 				&len);
 			if (client_fd < 0)
 			{
 				destroy();
-				error("Error on accepting client connection in main.\n");
+				error("Error on accepting client connection\
+					in main.\n");
 			}
 
 			// Lock the job queue mutex
@@ -116,7 +120,10 @@ main(int argc, char * argv[])
 			if (err != 0)
 				error("Error on unlocking job queue mutex!\n");
 
-			// Signal to any waiting threads that a new job is available
+			/*
+			 * Signal to any waiting threads
+			 * that a new job is available
+			 */
 			err = pthread_cond_signal(job_available);
 		}
 	}

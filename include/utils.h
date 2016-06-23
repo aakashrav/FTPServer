@@ -80,8 +80,8 @@ get_random_port();
 char *
 get_formatted_local_ip_address(unsigned int port, int IPV4ONLY);
 
-/* 
- * Connects to the client with the given 
+/*
+ * Connects to the client with the given
  * IP Address
  * and Port in active mode
  */

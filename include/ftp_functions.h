@@ -21,13 +21,13 @@
 
 // Number of threads in the thread pool
 #define NUM_THREADS 5
-/* 
+/*
  * Maximum number of connected clients to the server;
  * used in the 'listen' system call
  */
 #define MAX_NUM_CONNECTED_CLIENTS 5
 
-/* 
+/*
  * Create a structure that holds all the parameters
  * of the current client connection context.
  * This structure will be passed between the different
@@ -53,8 +53,8 @@ typedef struct client_context {
 void
 (*get_handler(char * command))(client_context_t *);
 
- 
-// Initlialize mutexes, conditional variables, and job queue 
+
+// Initlialize mutexes, conditional variables, and job queue
 int
 init();
 
@@ -86,7 +86,7 @@ FEAT_HANDLER(client_context_t * current_context);
 void
 QUIT_HANDLER(client_context_t * current_context);
 
-/* 
+/*
  * Handler function if the client issues a command
  * that is not recognized by the FTP protocol.
  */

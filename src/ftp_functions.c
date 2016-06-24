@@ -13,8 +13,7 @@ void
 	 * USER authentication command. We will use anonymous FTP, so this
 	 * command is simply for completeness
 	 */
-	if (strcmp(command, "USER") == 0)
-	{
+	if (strcmp(command, "USER") == 0) {
 		return (USER_HANDLER);
 	}
 
@@ -22,8 +21,7 @@ void
 	 * PASS authentication command. We will use anonymous FTP, so
 	 *  this command is simply for completeness
 	 */
-	else if(strcmp(command, "PASS") == 0)
-	{
+	else if(strcmp(command, "PASS") == 0) {
 		return (PASS_HANDLER);
 	}
 
@@ -31,8 +29,7 @@ void
 	 * SYST command, send details about the FTP's
 	 * ambient operating system
 	 */
-	else if(strcmp(command, "SYST") == 0)
-	{
+	else if(strcmp(command, "SYST") == 0) {
 		return (SYST_HANDLER);
 	}
 
@@ -40,8 +37,7 @@ void
 	 * Send details about the features of the FTP Server
 	 * implementation
 	 */
-	else if (strcmp(command, "FEAT") == 0)
-	{
+	else if (strcmp(command, "FEAT") == 0) {
 		return (FEAT_HANDLER);
 	}
 
@@ -49,8 +45,7 @@ void
 	 *  Send client details about the current working directory of
 	 * the server executable
 	 */
-	else if(strcmp(command, "PWD")==0)
-	{
+	else if(strcmp(command, "PWD")==0) {
 		return (PWD_HANDLER);
 	}
 
@@ -58,8 +53,7 @@ void
 	 * Server recieves command from client directing its
 	 * switch to Passive mode FTP with *IPV4 Only
 	 */
-	else if(strcmp(command, "PASV") == 0)
-	{
+	else if(strcmp(command, "PASV") == 0) {
 		return (PASV_HANDLER);
 	}
 
@@ -67,8 +61,7 @@ void
 	 * Server recieves command from client directing its switch to
 	 * Passive mode FTP with *Both IPv4 and IPv6*
 	 */
-	else if(strcmp(command, "EPSV") == 0)
-	{
+	else if(strcmp(command, "EPSV") == 0) {
 		return (EPSV_HANDLER);
 	}
 
@@ -76,8 +69,7 @@ void
 	 * Command to change the working directory of
 	 * the server executable
 	 */
-	else if (strcmp(command, "CWD") == 0)
-	{
+	else if (strcmp(command, "CWD") == 0) {
 		return (CWD_HANDLER);
 	}
 
@@ -86,13 +78,11 @@ void
 	 * the PORT command with the PORT
 	 * that it will listen to for future data transfer connections
 	 */
-	else if (strcmp(command, "PORT")==0)
-	{
+	else if (strcmp(command, "PORT")==0) {
 		return (PORT_HANDLER);
 	}
 
-	else if (strcmp(command, "TYPE") == 0)
-	{
+	else if (strcmp(command, "TYPE") == 0) {
 		return (TYPE_HANDLER);
 	}
 
@@ -101,16 +91,13 @@ void
 	 * contents of the current working directory
 	 * of the server executable
 	 */
-	else if (strcmp(command, "LIST") == 0)
-	{
+	else if (strcmp(command, "LIST") == 0) {
 		return (LIST_HANDLER);
 	}
 
 	// Client has issued a command to get a certain file
-	else if (strcmp(command, "RETR") == 0)
-	{
+	else if (strcmp(command, "RETR") == 0) {
 		return (RETR_HANDLER);
-
 	}
 
 	/*
@@ -118,29 +105,25 @@ void
 	 * store a file on the server,
 	 * in the current working directory of the program
 	 */
-	else if (strcmp(command, "STOR") == 0)
-	{
+	else if (strcmp(command, "STOR") == 0) {
 		return (STOR_HANDLER);
 	}
 
-	else if (strcmp(command, "APPE") == 0)
-	{
+	else if (strcmp(command, "APPE") == 0) {
 		return (APPE_HANDLER);
 	}
 
 	/*
 	 * Client has issued the command to remove a specified directory
 	 */
-	else if (strcmp(command, "RMD") == 0)
-	{
+	else if (strcmp(command, "RMD") == 0) {
 		return (RMD_HANDLER);
 	}
 
 	/*
 	 * Client has issued the command to make a new directory
 	 */
-	else if (strcmp(command, "MKD") == 0)
-	{
+	else if (strcmp(command, "MKD") == 0) {
 		return (MKD_HANDLER);
 	}
 
@@ -150,8 +133,7 @@ void
 	 * and close this connection.
 	 */
 	else if ( (strcmp(command, "QUIT") == 0) || \
-		(strcmp(command, "quit") == 0) )
-	{
+		(strcmp(command, "quit") == 0) ) {
 		return (QUIT_HANDLER);
 	}
 
@@ -160,8 +142,7 @@ void
 	 * not be matched
 	 * with any of the commands supported by the server
 	 */
-	else
-	{
+	else {
 		return (OTHER_HANDLER);
 	}
 }
@@ -172,8 +153,7 @@ void
  * and job queue
  */
 int
-init()
-{
+init() {
 	int err;
 	available_jobs = 0;
 
@@ -204,23 +184,19 @@ init()
  * and executes them.
  */
 void *
-ftp_thread(void * args)
-{
+ftp_thread(void * args) {
 	int err;
 	// First the thread tries to retrieve a job from the job queue
-	while (1)
-	{
+	while (1) {
 		// Lock the job queue
 		err = pthread_mutex_lock(job_queue_lock);
 
-		if (err != 0)
-		{
+		if (err != 0) { 
 			error("Error on locking job queue thread\n");
 		}
 
 		// Wait while there are no jobs available
-		while (available_jobs == 0)
-		{
+		while (available_jobs == 0) {
 			pthread_cond_wait(job_available, job_queue_lock);
 		}
 
@@ -232,8 +208,7 @@ ftp_thread(void * args)
 
 		// Unlock the job queue and continue processing
 		err = pthread_mutex_unlock(job_queue_lock);
-		if (err != 0)
-		{
+		if (err != 0) {
 			error("Error unlocking job queue\n");
 		}
 
@@ -303,8 +278,7 @@ ftp_thread(void * args)
 		 * While the client is sending us a message,
 		 * process the message.
 		 */
-		while ( (nread = read(client.fd, buf_ptr, sizeof (buf) )) > 0)
-		{
+		while ( (nread = read(client.fd, buf_ptr, sizeof (buf) )) > 0) {
 			/*
 			 * Remove extraneous characters
 			 * that don't
@@ -356,8 +330,7 @@ ftp_thread(void * args)
 
 // Handler function for the USER FTP command
 void
-USER_HANDLER(client_context_t * current_context)
-{
+USER_HANDLER(client_context_t * current_context) {
 	// Ask the client for his or her password.
 	int nwrite = write(current_context->client_comm_fd,
 		"331 Password required for USER\r\n",
@@ -370,8 +343,7 @@ USER_HANDLER(client_context_t * current_context)
  * Handler function for the PASS FTP command
  */
 void
-PASS_HANDLER(client_context_t * current_context)
-{
+PASS_HANDLER(client_context_t * current_context) {
 	/*
 	 * We implement anonymous FTP,
 	 * so any password is accepted
@@ -387,8 +359,7 @@ PASS_HANDLER(client_context_t * current_context)
 
 // Handler function for the SYST FTP command
 void
-SYST_HANDLER(client_context_t * current_context)
-{
+SYST_HANDLER(client_context_t * current_context) {
 	/*
 	 * Inform the client of the
 	 * operating system
@@ -405,8 +376,7 @@ SYST_HANDLER(client_context_t * current_context)
  * FEAT FTP command
  */
 void
-FEAT_HANDLER(client_context_t * current_context)
-{
+FEAT_HANDLER(client_context_t * current_context) {
 	/*
 	 * Inform the client of the
 	 * FTP Extensions that our server supports
@@ -420,8 +390,7 @@ FEAT_HANDLER(client_context_t * current_context)
 
 // Handler function for the QUIT FTP command
 void
-QUIT_HANDLER(client_context_t * current_context)
-{
+QUIT_HANDLER(client_context_t * current_context) {
 	int nwrite = write(current_context->client_comm_fd, "Goodbye.\r\n",
 			strlen("Goodbye.\r\n"));
 	if (nwrite < 0)
@@ -435,8 +404,7 @@ QUIT_HANDLER(client_context_t * current_context)
  * that is not recognized by the FTP protocol.
  */
 void
-OTHER_HANDLER(client_context_t * current_context)
-{
+OTHER_HANDLER(client_context_t * current_context) {
 	print_debug("Unsupported command issued by client\n");
 
 	/*
@@ -454,8 +422,7 @@ OTHER_HANDLER(client_context_t * current_context)
 
 // Handler function for the PWD FTP command
 void
-PWD_HANDLER(client_context_t * current_context)
-{
+PWD_HANDLER(client_context_t * current_context) {
 	/*
 	 * Print the current working directory of the server,
 	 * along with the associated status codes
@@ -482,8 +449,7 @@ PWD_HANDLER(client_context_t * current_context)
 
 // Handler function for the PASV FTP command
 void
-PASV_HANDLER(client_context_t * current_context)
-{
+PASV_HANDLER(client_context_t * current_context) {
 	print_debug("Client issued command PASV!\n");
 
 	// Choose a random port to listen for data connections
@@ -534,8 +500,7 @@ PASV_HANDLER(client_context_t * current_context)
 
 // Handler function for the EPSV FTP command
 void
-EPSV_HANDLER(client_context_t * current_context)
-{
+EPSV_HANDLER(client_context_t * current_context) {
 	print_debug("Client issued command EPSV!\n");
 
 	// Choose a random port to listen for data connections
@@ -585,8 +550,7 @@ EPSV_HANDLER(client_context_t * current_context)
 
 // Handler function for the CWD FTP command
 void
-CWD_HANDLER(client_context_t * current_context)
-{
+CWD_HANDLER(client_context_t * current_context) {
 	print_debug("Client issued command CWD\n");
 
 	/*
@@ -611,15 +575,13 @@ CWD_HANDLER(client_context_t * current_context)
 	ssize_t nwrite = 0;
 	// Switch to the inputted directory
 	int err = chdir(new_path);
-	if (err < 0)
-	{
+	if (err < 0) {
 		nwrite = write(current_context->client_comm_fd, "550\r\n",
 			strlen("550\r\n"));
 		free(new_path);
 		new_path = NULL;
 	}
-	else
-	{
+	else {
 		nwrite = write(current_context->client_comm_fd,
 			"250\r\n", strlen("250\r\n"));
 		free(current_context->current_working_directory);
@@ -633,8 +595,7 @@ CWD_HANDLER(client_context_t * current_context)
 
 // Handler function for the PORT FTP command
 void
-PORT_HANDLER(client_context_t * current_context)
-{
+PORT_HANDLER(client_context_t * current_context) {
 	print_debug("Client issued command PORT!\n");
 
 	/*
@@ -687,16 +648,14 @@ PORT_HANDLER(client_context_t * current_context)
 
 // Handler function for the TYPE FTP command
 void
-TYPE_HANDLER(client_context_t * current_context)
-{
+TYPE_HANDLER(client_context_t * current_context) {
 	print_debug("Client issued command TYPE!\n");
 
 	// Get the type of change to the binary flag
 	current_context->input_command = strtok(NULL, " ");
 
 	// ASCII Type
-	if (strcmp(current_context->input_command, "A") == 0)
-	{
+	if (strcmp(current_context->input_command, "A") == 0) {
 		current_context->binary_flag = 0;
 		// Send successful binary flag update status to client
 		ssize_t nwrite = write(current_context->client_comm_fd,
@@ -708,8 +667,7 @@ TYPE_HANDLER(client_context_t * current_context)
 			status to client\n");
 	}
 	// Binary type
-	else
-	{
+	else {
 		current_context->binary_flag = 1;
 		// Send successful binary flag update status to client
 		ssize_t nwrite = write(current_context->client_comm_fd,
@@ -724,8 +682,7 @@ TYPE_HANDLER(client_context_t * current_context)
 
 // Handle for the LIST FTP command
 void
-LIST_HANDLER(client_context_t * current_context)
-{
+LIST_HANDLER(client_context_t * current_context) {
 	print_debug("Client issued command LIST!\n");
 
 	ssize_t nwrite;
@@ -748,8 +705,7 @@ LIST_HANDLER(client_context_t * current_context)
 	 * chosen passive mode to be their
 	 * desired form of data transfer
 	 */
-	if (!current_context->active_flag)
-	{
+	if (!current_context->active_flag) {
 		struct sockaddr_storage temp;
 		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
 		/*
@@ -795,8 +751,7 @@ LIST_HANDLER(client_context_t * current_context)
 	 *  active mode to be their
 	 * desired form of data transfer
 	 */
-	else
-	{
+	else {
 		socklen_t len = sizeof (struct sockaddr_storage);
 
 		/*
@@ -823,8 +778,7 @@ LIST_HANDLER(client_context_t * current_context)
 		 * Handle error situations in processing
 		 * the client connection
 		 */
-		if (err != 0)
-		{
+		if (err != 0) {
 			nwrite = write(current_context->client_comm_fd,
 				"425 can't open data \
 				connection\r\n",
@@ -840,8 +794,7 @@ LIST_HANDLER(client_context_t * current_context)
 		 * regarding the
 		 * client's connection
 		 */
-		else
-		{
+		else {
 			/*
 			 * Use a helper function to connect
 			 * to the client's IP Address,
@@ -860,8 +813,7 @@ LIST_HANDLER(client_context_t * current_context)
 			 * when trying to connect to the
 			 * client port for active FTP, we inform the client
 			 */
-			if (current_context->data_fd < 0)
-			{
+			if (current_context->data_fd < 0) {
 				nwrite = write(current_context->client_comm_fd,
 					"425 can't open active \
 					data connection\r\n",
@@ -903,8 +855,7 @@ LIST_HANDLER(client_context_t * current_context)
 
 // Handle for the STOR FTP command
 void
-STOR_HANDLER(client_context_t * current_context)
-{
+STOR_HANDLER(client_context_t * current_context) {
 	print_debug("Client has issued command STOR!\n");
 
 	ssize_t nwrite;
@@ -930,10 +881,8 @@ STOR_HANDLER(client_context_t * current_context)
 	 * we have to inform the client and abort
 	 * the procedure
 	 */
-	if (err < 0)
-	{
-		if (errno != ENOENT)
-		{
+	if (err < 0) {
+		if (errno != ENOENT) {
 			// Inform the client of the error during truncation
 			nwrite = write(current_context->client_comm_fd,
 				"452 file unavailable\r\n",
@@ -954,14 +903,12 @@ STOR_HANDLER(client_context_t * current_context)
 	file_fd = open(filename, O_CREAT | O_EXCL | O_WRONLY, 0644);
 
 	// An error occured in opening the file descriptor
-	if (file_fd < 0)
-	{
+	if (file_fd < 0) {
 		/*
 		 * The situation where another process was trying to open
 		 * the same file descriptor
 		 */
-		if (errno == EEXIST)
-		{
+		if (errno == EEXIST) {
 			print_debug("ERROR: Concurrent creation\
 				of the same file \
 				descriptor! \n");
@@ -995,8 +942,7 @@ STOR_HANDLER(client_context_t * current_context)
 	 * passive mode to be their
 	 * desired form of data transfer
 	 */
-	if (!current_context->active_flag)
-	{
+	if (!current_context->active_flag) {
 		struct sockaddr_storage temp;
 		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
 		/*
@@ -1046,8 +992,7 @@ STOR_HANDLER(client_context_t * current_context)
 	 * chosen active mode to be their
 	 *	desired form of data transfer
 	 */
-	else
-	{
+	else {
 		socklen_t len = sizeof (struct sockaddr_storage);
 
 		/*
@@ -1070,8 +1015,7 @@ STOR_HANDLER(client_context_t * current_context)
 			NI_NUMERICHOST | NI_NUMERICSERV);
 
 		// Handle error situations in processing the client connection
-		if (err != 0)
-		{
+		if (err != 0) {
 			nwrite = write(current_context->client_comm_fd,
 				"425 can't open data connection\r\n",
 				strlen("425 can't open data connection\r\n"));
@@ -1085,8 +1029,7 @@ STOR_HANDLER(client_context_t * current_context)
 		 * Successfully obtained information regarding the client's
 		 * connection
 		 */
-		else
-		{
+		else {
 			/*
 			 * Use a helper function to connect
 			 * to the client's IP Address,
@@ -1103,8 +1046,7 @@ STOR_HANDLER(client_context_t * current_context)
 			 * If we for some reason fail when trying to connect to
 			 * the client port for active FTP, we inform the client
 			 */
-			if (current_context->data_fd < 0)
-			{
+			if (current_context->data_fd < 0) {
 				nwrite = write(current_context->client_comm_fd,
 					"425 can't open data connection\r\n",
 					strlen("425 can't open\
@@ -1139,8 +1081,7 @@ STOR_HANDLER(client_context_t * current_context)
 
 // Handle for the FTP APPE Command
 void
-APPE_HANDLER(client_context_t * current_context)
-{
+APPE_HANDLER(client_context_t * current_context) {
 	print_debug("Client has issued command APPE!\n");
 
 	ssize_t nwrite;
@@ -1155,8 +1096,7 @@ APPE_HANDLER(client_context_t * current_context)
 	file_fd = open(filename, O_CREAT | O_APPEND, 0644);
 
 	// Error in opening file descriptor, so we inform the client
-	if (file_fd < 0)
-	{
+	if (file_fd < 0) {
 		nwrite =
 		write(current_context->client_comm_fd
 			, "452 file unavailable\r\n", strlen("452 file \
@@ -1167,8 +1107,7 @@ APPE_HANDLER(client_context_t * current_context)
 	}
 
 	// Else we inform client of successful opening of file for appending
-	else
-	{
+	else {
 		nwrite = write(current_context->client_comm_fd,
 			"150 Opening file transfer data connection\r\n",
 			strlen("150 Opening file transfer\
@@ -1184,8 +1123,7 @@ APPE_HANDLER(client_context_t * current_context)
 	 * mode to be their
 	 * desired form of data transfer
 	 */
-	if (!current_context->active_flag)
-	{
+	if (!current_context->active_flag) {
 		struct sockaddr_storage temp;
 		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
 
@@ -1235,8 +1173,7 @@ APPE_HANDLER(client_context_t * current_context)
 	 * currently chosen active mode to be their
 	 * desired form of data transfer
 	 */
-	else
-	{
+	else {
 		socklen_t len = sizeof (struct sockaddr_storage);
 
 		/*
@@ -1259,8 +1196,7 @@ APPE_HANDLER(client_context_t * current_context)
 			NI_NUMERICHOST | NI_NUMERICSERV);
 
 		// Handle error situations in processing the client connection
-		if (err != 0)
-		{
+		if (err != 0) {
 			nwrite = write(current_context->client_comm_fd,
 				"425 can't open data connection\r\n",
 				strlen("425 can't open data connection\r\n"));
@@ -1275,8 +1211,7 @@ APPE_HANDLER(client_context_t * current_context)
 		 * Successfully obtained information regarding the
 		 * client's connection
 		 */
-		else
-		{
+		else {
 			/*
 			 * Use a helper function to connect to the
 			 * client's IP Address,
@@ -1331,8 +1266,7 @@ APPE_HANDLER(client_context_t * current_context)
 
 // Handle for the RETR FTP command
 void
-RETR_HANDLER(client_context_t * current_context)
-{
+RETR_HANDLER(client_context_t * current_context) {
 	print_debug("Client has issued command RETR!\n");
 
 	ssize_t nwrite;
@@ -1345,8 +1279,7 @@ RETR_HANDLER(client_context_t * current_context)
 	 * client if something went wrong
 	 */
 	int file_fd = open(filename, O_RDONLY);
-	if (file_fd < 0)
-	{
+	if (file_fd < 0) {
 		nwrite = write(current_context->client_comm_fd,
 			"550 Error during file access \r\n",
 			strlen("550 Error during file access \r\n"));
@@ -1356,8 +1289,7 @@ RETR_HANDLER(client_context_t * current_context)
 	}
 
 	// Inform the client that we are ready to transfer the requested file.
-	else
-	{
+	else {
 		nwrite = write(current_context->client_comm_fd,
 			"150 Opening file transfer data connection\r\n",
 			strlen("150 Opening file transfer \
@@ -1373,8 +1305,7 @@ RETR_HANDLER(client_context_t * current_context)
 	 * chosen passive mode to be their
 	 * desired form of data transfer
 	 */
-	if (!current_context->active_flag)
-	{
+	if (!current_context->active_flag) {
 		struct sockaddr_storage temp;
 		socklen_t len = (socklen_t)sizeof (struct sockaddr_storage);
 		/*
@@ -1424,8 +1355,7 @@ RETR_HANDLER(client_context_t * current_context)
 	 * active mode to be their
 	 * desired form of data transfer
 	 */
-	else
-	{
+	else {
 		socklen_t len = sizeof (struct sockaddr_storage);
 
 		/*
@@ -1447,8 +1377,7 @@ RETR_HANDLER(client_context_t * current_context)
 			NI_NUMERICHOST | NI_NUMERICSERV);
 
 		// Handle error situations in processing the client connection
-		if (err != 0)
-		{
+		if (err != 0) {
 			nwrite = write(current_context->client_comm_fd,
 				"425 can't open data connection\r\n",
 				strlen("425 can't open data connection\r\n"));
@@ -1462,8 +1391,7 @@ RETR_HANDLER(client_context_t * current_context)
 		 * Successfully obtained information regarding the
 		 * client's connection
 		 */
-		else
-		{
+		else {
 			/*
 			 * Use a helper function to connect
 			 * to the client's IP Address,
@@ -1481,8 +1409,7 @@ RETR_HANDLER(client_context_t * current_context)
 			 * to the
 			 * client port for active FTP, we inform the client
 			 */
-			if (current_context->data_fd < 0)
-			{
+			if (current_context->data_fd < 0) {
 				nwrite = write(current_context->client_comm_fd,
 					"425 can't open active\
 					data connection\r\n",
@@ -1517,8 +1444,7 @@ RETR_HANDLER(client_context_t * current_context)
 
 // Used to accomplish the RMD FTP command
 void
-RMD_HANDLER(client_context_t * current_context)
-{
+RMD_HANDLER(client_context_t * current_context) {
 	print_debug("Client has issued command RMD!\n");
 
 	ssize_t nwrite;
@@ -1544,8 +1470,7 @@ RMD_HANDLER(client_context_t * current_context)
 
 // Used to accomplish the MKD FTP command
 void
-MKD_HANDLER(client_context_t * current_context)
-{
+MKD_HANDLER(client_context_t * current_context) {
 	print_debug("Client has issued command MKD!\n");
 
 	ssize_t nwrite;
@@ -1575,8 +1500,7 @@ MKD_HANDLER(client_context_t * current_context)
  * used in conjunction with the LIST command
  */
 char *
-LIST(char * dir_name)
-{
+LIST(char * dir_name) {
 	// Open the inputted working directory
 	DIR * d;
 	d = opendir(dir_name);
@@ -1590,8 +1514,7 @@ LIST(char * dir_name)
 	char * full_list = calloc(max_size, 1);
 	long cur_size = 0;
 
-	if (d == 0)
-	{
+	if (d == 0) {
 		print_debug("Error opening directory: ");
 		print_debug(dir_name);
 		print_debug("\n");
@@ -1605,12 +1528,10 @@ LIST(char * dir_name)
 	struct dirent * cur_dir_entry;
 	cur_dir_entry = readdir(d);
 
-	while (cur_dir_entry != NULL)
-	{
+	while (cur_dir_entry != NULL) {
 
 		// Ignore hidden directories or control directories
-		if (cur_dir_entry->d_name[0] == '.')
-		{
+		if (cur_dir_entry->d_name[0] == '.') {
 			cur_dir_entry = readdir(d);
 			continue;
 		}
@@ -1620,8 +1541,7 @@ LIST(char * dir_name)
 		 * above the allotted size,
 		 * we reallocate the buffer
 		 */
-		if (cur_size + strlen(cur_dir_entry->d_name) > max_size-2)
-		{
+		if (cur_size + strlen(cur_dir_entry->d_name) > max_size-2) {
 			max_size+=4096;
 			full_list = realloc(full_list, max_size);
 		}
@@ -1643,8 +1563,8 @@ LIST(char * dir_name)
  * used in conjunction with the Passive FTP module
  */
 int
-initiate_server(long port)
-{
+initiate_server(long port) {
+
 	int err, fd =0;
 	struct addrinfo hints;
 	struct addrinfo * res;
@@ -1669,19 +1589,18 @@ initiate_server(long port)
 	 * and port number information
 	 */
 	err = getaddrinfo(NULL, port_pointer, &hints, &res_original);
-	if (err)
-	{
+	if (err) {
 		error(gai_strerror(err));
 	}
 
-	for (res = res_original; res!=NULL; (res=res->ai_next))
-	{
+	for (res = res_original; res!=NULL; (res=res->ai_next)) {
+
 		// Double checking so we don't get invalid values
 		if (res->ai_family != AF_INET6)
 			continue;
 
-		if (res->ai_family == AF_INET6)
-		{
+		if (res->ai_family == AF_INET6) {
+
 			fd = socket(AF_INET6, SOCK_STREAM, 0);
 			if (fd == -1)
 				error("Error on socket during\
@@ -1714,12 +1633,12 @@ initiate_server(long port)
  * and writes the bytes into the file descriptor
  */
 int
-STOR(int file_fd, int data_fd, int binary_flag)
-{
+STOR(int file_fd, int data_fd, int binary_flag) {
+
 	ssize_t nwrite;
 
-	if (!binary_flag)
-	{
+	if (!binary_flag) {
+
 		// Instantiate buffer for holding partial contents of read input
 		int current_length = 4098;
 		char * buf_ptr = calloc(current_length, 1);
@@ -1735,8 +1654,8 @@ STOR(int file_fd, int data_fd, int binary_flag)
 		 */
 		while ( (current_length =
 				readline(data_stream,
-					buf_ptr, current_length)) != -1)
-		{
+					buf_ptr, current_length)) != -1) {
+
 
 			char * read_content = calloc(current_length+2, 1);
 			sprintf(read_content, "%s\r\n", buf_ptr);
@@ -1766,8 +1685,8 @@ STOR(int file_fd, int data_fd, int binary_flag)
 		buf_ptr = NULL;
 	}
 
-	if (binary_flag)
-	{
+	if (binary_flag) {
+
 		// File handler and variable to hold the contents
 		FILE * data_stream;
 		char * contents;
@@ -1811,12 +1730,12 @@ STOR(int file_fd, int data_fd, int binary_flag)
  * Used in conjunction with a client request to get a file
  */
 int
-RETR(int file_fd, int data_fd, int binary_flag)
-{
+RETR(int file_fd, int data_fd, int binary_flag) {
+
 	ssize_t nwrite;
 
-	if (!binary_flag)
-	{
+	if (!binary_flag) {
+
 		/*
 		 * Instantiate buffer for holding
 		 * partial contents of read input
@@ -1833,8 +1752,8 @@ RETR(int file_fd, int data_fd, int binary_flag)
 		 * replacing new line feeds with a \r\n
 		 */
 		while ( (current_length = readline(file_stream,
-				buf_ptr, current_length)) != -1)
-		{
+				buf_ptr, current_length)) != -1) {
+
 			char * read_content = calloc(current_length+2, 1);
 			sprintf(read_content, "%s\r\n", buf_ptr);
 
@@ -1863,8 +1782,8 @@ RETR(int file_fd, int data_fd, int binary_flag)
 		buf_ptr = NULL;
 	}
 
-	if (binary_flag)
-	{
+	if (binary_flag) {
+
 		// File handler and variable to hold the contents
 		FILE * file_stream;
 		char * contents;

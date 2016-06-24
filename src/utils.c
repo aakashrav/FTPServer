@@ -2,8 +2,8 @@
 
 // Print debugging messages
 inline void
-print_debug(const char * message)
-{
+print_debug(const char * message) {
+
 	#ifdef DEBUG
 	printf("%s", message);
 	fflush(stdout);
@@ -12,8 +12,8 @@ print_debug(const char * message)
 
 // Error function to exit gracefully
 void
-error(const char * message)
-{
+error(const char * message) {
+
 	// Print the error number
 	printf("Error number: %d\n", errno);
 	fflush(stdout);
@@ -27,8 +27,8 @@ error(const char * message)
 
 // Destroy mutexes, conditional variables, and job queue
 int
-destroy()
-{
+destroy() {
+
 	pthread_mutex_destroy(job_queue_lock);
 	free(job_queue_lock);
 	job_queue_lock = NULL;
@@ -44,8 +44,8 @@ destroy()
 
 // Enqueue a single job into the job queue
 int
-enqueue(job_t *head, int fd, struct sockaddr_storage client_addr)
-{
+enqueue(job_t *head, int fd, struct sockaddr_storage client_addr) {
+
 	job_t * jb = head;
 	while (jb->next != NULL)
 	jb= jb->next;
@@ -62,24 +62,23 @@ enqueue(job_t *head, int fd, struct sockaddr_storage client_addr)
 
 // Dequeue a single job from the job queue
 job_t
-dequeue(job_t *head)
-{
+dequeue(job_t *head) {
+
 	job_t return_job;
 	job_t * jb = head;
 	jb = jb->next;
 
-	if (jb != NULL)
-	{
+	if (jb != NULL) {
 
-	job_t * nxt_job = jb->next;
-	jb->previous->next = nxt_job;
-	if (nxt_job != NULL)
-		nxt_job->previous = jb->previous;
+		job_t * nxt_job = jb->next;
+		jb->previous->next = nxt_job;
+		if (nxt_job != NULL)
+			nxt_job->previous = jb->previous;
 
-	return_job.fd = jb->fd;
-	return_job.client_addr = jb->client_addr;
-	free(jb);
-	jb = NULL;
+		return_job.fd = jb->fd;
+		return_job.client_addr = jb->client_addr;
+		free(jb);
+		jb = NULL;
 	}
 	else
 	{
@@ -93,13 +92,12 @@ dequeue(job_t *head)
 
 // Free all the remaining jobs in the queue, cleanup function
 void
-free_jobs(job_t * head)
-{
-	while (head!= NULL)
-	{
-	job_t * next = head->next;
-	free(head);
-	head = next;
+free_jobs(job_t * head) {
+
+	while (head!= NULL) {
+		job_t * next = head->next;
+		free(head);
+		head = next;
 	}
 
 	// For extra safety, don't want double free problems later
@@ -111,11 +109,10 @@ free_jobs(job_t * head)
  * Namely, will generate a random number between 1000 - 65535
  */
 long
-get_random_port()
-{
+get_random_port() {
+
 	int a = 0;
-	while (a < 1000)
-	{
+	while (a < 1000) {
 		srand( time(NULL) );
 		a = rand();
 		a = a % 65535;
@@ -128,8 +125,8 @@ get_random_port()
  *  normative for FTP servers; an example would be (187, 165, 1, 12, 210, 19)
  */
 char *
-get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
-{
+get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
+
 	/*
 	 * Use getifaddrs to get network interfaces of
 	 * the local machine and combine it
@@ -147,13 +144,13 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
 	char address_buffer_ipv4[INET_ADDRSTRLEN];
 	char address_buffer_ipv6[INET6_ADDRSTRLEN];
 
-	for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next)
-	{
+	for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+
 		if (!ifa->ifa_addr)
 			continue;
 
-		if (ifa->ifa_addr->sa_family == AF_INET)
-		{
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+
 			/*
 			 * We don't want local interfaces, but rather the
 			 * interface visible to the internet
@@ -169,8 +166,8 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
 		}
 
 		// Analogously, we perform the same procedure with IPV6
-		else if (ifa->ifa_addr->sa_family == AF_INET6)
-		{
+		else if (ifa->ifa_addr->sa_family == AF_INET6) {
+
 			/*
 			 * If the client specified non-extended passive mode,
 			 * we must return only IPv4 Addresses
@@ -207,14 +204,14 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
 	else
 		buf_ptr = address_buffer_ipv6;
 
-	for (int i=0; i < strlen(buf_ptr); i++)
-	{
+	for (int i=0; i < strlen(buf_ptr); i++) {
+
 		if (buf_ptr[i] == '.')
 			buf_ptr[i] = ',';
 	}
 
-	if (ipv4)
-	{
+	if (ipv4) {
+
 		complete_address_buffer = calloc(INET_ADDRSTRLEN+15, 1);
 
 		strcat(complete_address_buffer, "(");
@@ -240,8 +237,8 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
 		strcat(complete_address_buffer, ")");
 		strcat(complete_address_buffer, "\0");
 	}
-	else
-	{
+	else {
+
 		complete_address_buffer = calloc(INET6_ADDRSTRLEN+15, 1);
 
 		strcat(complete_address_buffer, "(");
@@ -272,8 +269,8 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY)
  * but in a different port.
  */
 int
-get_active_client_connection(const char * ip_address, const char * port)
-{
+get_active_client_connection(const char * ip_address, const char * port) {
+
 	/*
 	 * Initialize various structures and parameters
 	 * used for the getaddrinfo/4 function
@@ -294,8 +291,8 @@ get_active_client_connection(const char * ip_address, const char * port)
 	 * to the given IP Address and port
 	 */
 	err = getaddrinfo(ip_address, port, &hints, &res_original);
-	if (err)
-	{
+	if (err) {
+
 		return (-1);
 	}
 
@@ -303,8 +300,8 @@ get_active_client_connection(const char * ip_address, const char * port)
 	 * Parse the returned structures until
 	 * we reach one that is either IPV4 or IPV6 format
 	 */
-	for (res = res_original; res!=NULL; (res=res->ai_next))
-	{
+	for (res = res_original; res!=NULL; (res=res->ai_next)) {
+
 		if (res->ai_family != AF_INET6)
 			continue;
 		else
@@ -331,18 +328,18 @@ get_active_client_connection(const char * ip_address, const char * port)
  * Reads a line from the inputted file and outputs
  * the contents into the buffer
  */
-int readline(FILE *f, char *buffer, int len)
-{
+int readline(FILE *f, char *buffer, int len) {
+
 	int counter = 0;
 	int new_length = len;
 
 	int c = fgetc(f);
-	while ( !((feof(f)) || (c == '\r') || (c == '\n')) )
-	{
+	while ( !((feof(f)) || (c == '\r') || (c == '\n')) ) {
+
 		buffer[counter] = c;
 
-		if ( (counter + 1) > len)
-		{
+		if ( (counter + 1) > len) {
+
 			buffer = realloc(buffer, counter + 4096);
 			new_length = counter + 4096;
 		}
@@ -352,8 +349,8 @@ int readline(FILE *f, char *buffer, int len)
 
 	if (feof(f))
 		return (-1);
-	else
-	{
+	else {
+
 		return (new_length);
 	}
 }

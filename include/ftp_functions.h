@@ -1,5 +1,5 @@
 #ifndef _FTP_FUNCTIONS_H
-#define _FTP_FUNCTIONS_H
+#define		_FTP_FUNCTIONS_H
 
 #include <pthread.h>
 #include <sys/types.h>
@@ -20,12 +20,12 @@
 #include <arpa/inet.h>
 
 // Number of threads in the thread pool
-#define NUM_THREADS 5
+#define		NUM_THREADS 5
 /*
  * Maximum number of connected clients to the server;
  * used in the 'listen' system call
  */
-#define MAX_NUM_CONNECTED_CLIENTS 5
+#define		MAX_NUM_CONNECTED_CLIENTS 5
 
 /*
  * Create a structure that holds all the parameters

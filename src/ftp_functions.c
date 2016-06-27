@@ -21,7 +21,7 @@ void
 	 * PASS authentication command. We will use anonymous FTP, so
 	 *  this command is simply for completeness
 	 */
-	else if(strcmp(command, "PASS") == 0) {
+	else if (strcmp(command, "PASS") == 0) {
 		return (PASS_HANDLER);
 	}
 
@@ -29,7 +29,7 @@ void
 	 * SYST command, send details about the FTP's
 	 * ambient operating system
 	 */
-	else if(strcmp(command, "SYST") == 0) {
+	else if (strcmp(command, "SYST") == 0) {
 		return (SYST_HANDLER);
 	}
 
@@ -45,7 +45,7 @@ void
 	 *  Send client details about the current working directory of
 	 * the server executable
 	 */
-	else if(strcmp(command, "PWD")==0) {
+	else if (strcmp(command, "PWD") == 0) {
 		return (PWD_HANDLER);
 	}
 
@@ -53,7 +53,7 @@ void
 	 * Server recieves command from client directing its
 	 * switch to Passive mode FTP with *IPV4 Only
 	 */
-	else if(strcmp(command, "PASV") == 0) {
+	else if (strcmp(command, "PASV") == 0) {
 		return (PASV_HANDLER);
 	}
 
@@ -61,7 +61,7 @@ void
 	 * Server recieves command from client directing its switch to
 	 * Passive mode FTP with *Both IPv4 and IPv6*
 	 */
-	else if(strcmp(command, "EPSV") == 0) {
+	else if (strcmp(command, "EPSV") == 0) {
 		return (EPSV_HANDLER);
 	}
 
@@ -78,7 +78,7 @@ void
 	 * the PORT command with the PORT
 	 * that it will listen to for future data transfer connections
 	 */
-	else if (strcmp(command, "PORT")==0) {
+	else if (strcmp(command, "PORT") == 0) {
 		return (PORT_HANDLER);
 	}
 
@@ -128,12 +128,12 @@ void
 	}
 
 	/*
-     * Client has exited FTP,
-     * we wish the client a goodbye
+	 * Client has exited FTP,
+	 * we wish the client a goodbye
 	 * and close this connection.
 	 */
-	else if ( (strcmp(command, "QUIT") == 0) || \
-		(strcmp(command, "quit") == 0) ) {
+	else if ((strcmp(command, "QUIT") == 0) || \
+		(strcmp(command, "quit") == 0)) {
 		return (QUIT_HANDLER);
 	}
 
@@ -191,7 +191,7 @@ ftp_thread(void * args) {
 		// Lock the job queue
 		err = pthread_mutex_lock(job_queue_lock);
 
-		if (err != 0) { 
+		if (err != 0) {
 			error("Error on locking job queue thread\n");
 		}
 
@@ -278,7 +278,7 @@ ftp_thread(void * args) {
 		 * While the client is sending us a message,
 		 * process the message.
 		 */
-		while ( (nread = read(client.fd, buf_ptr, sizeof (buf) )) > 0) {
+		while ((nread = read(client.fd, buf_ptr, sizeof (buf))) > 0) {
 			/*
 			 * Remove extraneous characters
 			 * that don't
@@ -455,7 +455,7 @@ PASV_HANDLER(client_context_t * current_context) {
 	// Choose a random port to listen for data connections
 	current_context->data_port = get_random_port();
 
-	/// Generate a socket that is listening on the randomly generated port
+	// Generate a socket that is listening on the randomly generated port
 	current_context->data_fd = initiate_server(current_context->data_port);
 	if (current_context->data_fd < 0)
 		error("Error initiating passive FTP socket!\n");
@@ -580,8 +580,7 @@ CWD_HANDLER(client_context_t * current_context) {
 			strlen("550\r\n"));
 		free(new_path);
 		new_path = NULL;
-	}
-	else {
+	} else {
 		nwrite = write(current_context->client_comm_fd,
 			"250\r\n", strlen("250\r\n"));
 		free(current_context->current_working_directory);
@@ -601,7 +600,7 @@ PORT_HANDLER(client_context_t * current_context) {
 	/*
 	 * Get IP Address + port name, formatted according to
 	 * the norms of the RFC
- 	 * FTP standards
+	 * FTP standards
 	 */
 	current_context->input_command = strtok(NULL, " ");
 
@@ -612,7 +611,7 @@ PORT_HANDLER(client_context_t * current_context) {
 	// Separate IP Address from port name based on commas
 	strtok(current_context->input_command, ",");
 	// Read until we get the two numbers corresponding to the port
-	for (int i=0; i < 3; i++)
+	for (int i = 0; i < 3; i++)
 		strtok(NULL, ",");
 
 	/*
@@ -701,7 +700,7 @@ LIST_HANDLER(client_context_t * current_context) {
 	strcat(full_message, "\r\n");
 
 	/*
-     * Handle the case where the client has currently
+	 * Handle the case where the client has currently
 	 * chosen passive mode to be their
 	 * desired form of data transfer
 	 */
@@ -1098,8 +1097,8 @@ APPE_HANDLER(client_context_t * current_context) {
 	// Error in opening file descriptor, so we inform the client
 	if (file_fd < 0) {
 		nwrite =
-		write(current_context->client_comm_fd
-			, "452 file unavailable\r\n", strlen("452 file \
+		write(current_context->client_comm_fd,
+			"452 file unavailable\r\n", strlen("452 file \
 				unavailable\r\n"));
 		if (nwrite < 0)
 			error("Error on communicating file \
@@ -1226,8 +1225,9 @@ APPE_HANDLER(client_context_t * current_context) {
 
 			/*
 			 * If we for some reason fail when trying to connect
-		     * to the client port for active FTP, we inform the client
-		     */
+			 * to the client port for active FTP,
+			 * we inform the client
+			 */
 			if (current_context->data_fd < 0)
 			{
 				nwrite = write(current_context->client_comm_fd,
@@ -1542,7 +1542,7 @@ LIST(char * dir_name) {
 		 * we reallocate the buffer
 		 */
 		if (cur_size + strlen(cur_dir_entry->d_name) > max_size-2) {
-			max_size+=4096;
+			max_size += 4096;
 			full_list = realloc(full_list, max_size);
 		}
 
@@ -1565,7 +1565,7 @@ LIST(char * dir_name) {
 int
 initiate_server(long port) {
 
-	int err, fd =0;
+	int err, fd = 0;
 	struct addrinfo hints;
 	struct addrinfo * res;
 	struct addrinfo * res_original;
@@ -1593,7 +1593,7 @@ initiate_server(long port) {
 		error(gai_strerror(err));
 	}
 
-	for (res = res_original; res!=NULL; (res=res->ai_next)) {
+	for (res = res_original; res != NULL; (res = res->ai_next)) {
 
 		// Double checking so we don't get invalid values
 		if (res->ai_family != AF_INET6)
@@ -1652,7 +1652,7 @@ STOR(int file_fd, int data_fd, int binary_flag) {
 		 * replacing new line feeds
 		 * with a \r\n
 		 */
-		while ( (current_length =
+		while ((current_length =
 				readline(data_stream,
 					buf_ptr, current_length)) != -1) {
 
@@ -1707,8 +1707,8 @@ STOR(int file_fd, int data_fd, int binary_flag) {
 		 * Read the file, and dump the content
 		 * into the variable 'contents'
 		 */
-		size_t size=fread(contents, 1, file_size, data_stream);
-		contents[size]=0; // Add terminating zero.
+		size_t size = fread(contents, 1, file_size, data_stream);
+		contents[size] = 0; // Add terminating zero.
 
 		// Write the file's contents
 		nwrite = write(file_fd, contents, size);
@@ -1718,7 +1718,7 @@ STOR(int file_fd, int data_fd, int binary_flag) {
 		// Clean up
 		fclose(data_stream);
 		free(contents);
-		contents=NULL;
+		contents = NULL;
 	}
 
 	return (0);
@@ -1751,7 +1751,7 @@ RETR(int file_fd, int data_fd, int binary_flag) {
 		 * ASCII Mode - read the file's contents line by line,
 		 * replacing new line feeds with a \r\n
 		 */
-		while ( (current_length = readline(file_stream,
+		while ((current_length = readline(file_stream,
 				buf_ptr, current_length)) != -1) {
 
 			char * read_content = calloc(current_length+2, 1);
@@ -1804,8 +1804,8 @@ RETR(int file_fd, int data_fd, int binary_flag) {
 		 * Read the file, and dump the
 		 * content into the variable 'contents'
 		 */
-		size_t size=fread(contents, 1, file_size, file_stream);
-		contents[size]=0; // Add terminating zero.
+		size_t size = fread(contents, 1, file_size, file_stream);
+		contents[size] = 0; // Add terminating zero.
 
 		// Write the file's contents to the client
 		nwrite = write(data_fd, contents, size);
@@ -1815,7 +1815,7 @@ RETR(int file_fd, int data_fd, int binary_flag) {
 		// Clean up
 		fclose(file_stream);
 		free(contents);
-		contents=NULL;
+		contents = NULL;
 	}
 
 	return (0);

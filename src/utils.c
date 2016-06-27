@@ -4,10 +4,11 @@
 inline void
 print_debug(const char * message) {
 
-	#ifdef DEBUG
-	printf("%s", message);
-	fflush(stdout);
-	#endif
+#ifdef DEBUG
+printf("%s", message);
+fflush(stdout);
+#endif
+
 }
 
 // Error function to exit gracefully
@@ -48,7 +49,7 @@ enqueue(job_t *head, int fd, struct sockaddr_storage client_addr) {
 
 	job_t * jb = head;
 	while (jb->next != NULL)
-	jb= jb->next;
+	jb = jb->next;
 
 	job_t * new_job = calloc(1, sizeof (struct job));
 	new_job->fd = fd;
@@ -94,7 +95,7 @@ dequeue(job_t *head) {
 void
 free_jobs(job_t * head) {
 
-	while (head!= NULL) {
+	while (head != NULL) {
 		job_t * next = head->next;
 		free(head);
 		head = next;
@@ -113,7 +114,7 @@ get_random_port() {
 
 	int a = 0;
 	while (a < 1000) {
-		srand( time(NULL) );
+		srand(time(NULL));
 		a = rand();
 		a = a % 65535;
 	}
@@ -132,9 +133,9 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 	 * the local machine and combine it
 	 * with the inputted port
 	 */
-	struct ifaddrs * ifAddrStruct=NULL;
-	struct ifaddrs * ifa=NULL;
-	void * tmpAddrPtr=NULL;
+	struct ifaddrs * ifAddrStruct = NULL;
+	struct ifaddrs * ifa = NULL;
+	void * tmpAddrPtr = NULL;
 	char * complete_address_buffer;
 
 	getifaddrs(&ifAddrStruct);
@@ -155,7 +156,7 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 			 * We don't want local interfaces, but rather the
 			 * interface visible to the internet
 			 */
-			if (strcmp(ifa->ifa_name, "lo0") ==0)
+			if (strcmp(ifa->ifa_name, "lo0") == 0)
 				continue;
 
 			// We obtain a valid IPV4 address
@@ -175,7 +176,7 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 			if (IPV4ONLY)
 				continue;
 
-			if (strcmp(ifa->ifa_name, "lo0") ==0)
+			if (strcmp(ifa->ifa_name, "lo0") == 0)
 				continue;
 
 			tmpAddrPtr=
@@ -204,7 +205,7 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 	else
 		buf_ptr = address_buffer_ipv6;
 
-	for (int i=0; i < strlen(buf_ptr); i++) {
+	for (int i = 0; i < strlen(buf_ptr); i++) {
 
 		if (buf_ptr[i] == '.')
 			buf_ptr[i] = ',';
@@ -236,8 +237,7 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 		strcat(complete_address_buffer, lower_bits_string);
 		strcat(complete_address_buffer, ")");
 		strcat(complete_address_buffer, "\0");
-	}
-	else {
+	} else {
 
 		complete_address_buffer = calloc(INET6_ADDRSTRLEN+15, 1);
 
@@ -275,7 +275,7 @@ get_active_client_connection(const char * ip_address, const char * port) {
 	 * Initialize various structures and parameters
 	 * used for the getaddrinfo/4 function
 	 */
-	int err, fd=-1;
+	int err, fd = -1;
 	struct addrinfo hints;
 	struct addrinfo * res;
 	struct addrinfo * res_original;
@@ -300,7 +300,7 @@ get_active_client_connection(const char * ip_address, const char * port) {
 	 * Parse the returned structures until
 	 * we reach one that is either IPV4 or IPV6 format
 	 */
-	for (res = res_original; res!=NULL; (res=res->ai_next)) {
+	for (res = res_original; res != NULL; (res = res->ai_next)) {
 
 		if (res->ai_family != AF_INET6)
 			continue;
@@ -334,11 +334,11 @@ int readline(FILE *f, char *buffer, int len) {
 	int new_length = len;
 
 	int c = fgetc(f);
-	while ( !((feof(f)) || (c == '\r') || (c == '\n')) ) {
+	while (!((feof(f)) || (c == '\r') || (c == '\n'))) {
 
 		buffer[counter] = c;
 
-		if ( (counter + 1) > len) {
+		if ((counter + 1) > len) {
 
 			buffer = realloc(buffer, counter + 4096);
 			new_length = counter + 4096;

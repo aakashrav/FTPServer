@@ -19,7 +19,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-#define DEBUG
+#define		DEBUG
 
 // Node in the job queue linked list
 typedef struct job {

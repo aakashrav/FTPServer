@@ -5,13 +5,13 @@
 #include "utils.h"
 
 // Volatile quit variable
-volatile sig_atomic_t QUIT_FLAG=0;
+volatile sig_atomic_t QUIT_FLAG = 0;
 
 
 // Safe signal handler
 void handler(int signal) {
 
-	QUIT_FLAG=1;
+	QUIT_FLAG = 1;
 }
 
 void
@@ -24,7 +24,7 @@ usage() {
 int
 main(int argc, char * argv[]) {
 
-	if (argc<2) {
+	if (argc < 2) {
 
 		usage();
 		exit(1);
@@ -56,7 +56,7 @@ main(int argc, char * argv[]) {
 
 	// Spawn NUM_THREADS amount of threads
 	pthread_t arr[NUM_THREADS];
-	for (int i=0; i < NUM_THREADS; i++) {
+	for (int i = 0; i < NUM_THREADS; i++) {
 
 		pthread_create(&arr[i], NULL, ftp_thread, NULL);
 	}
@@ -69,7 +69,7 @@ main(int argc, char * argv[]) {
 	struct pollfd server_poll_structure = {server_fd, POLLIN, 0};
 	fds[0] = server_poll_structure;
 
-	while(!QUIT_FLAG) {
+	while (!QUIT_FLAG) {
 
 		print_debug("Main server: About to call poll command!\n");
 
@@ -89,7 +89,7 @@ main(int argc, char * argv[]) {
 
 			// Accept the latest client connection
 			socklen_t len =
-			(socklen_t)sizeof(struct sockaddr_storage);
+			(socklen_t)sizeof (struct sockaddr_storage);
 			client_fd =
 			accept(server_fd, (struct sockaddr *)&client_addr,
 				&len);

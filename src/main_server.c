@@ -130,4 +130,5 @@ main(int argc, char * argv[]) {
 
 	// Deallocate resources related to the job queue and associated locks
 	destroy();
+	return (0);
 }

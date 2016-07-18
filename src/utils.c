@@ -116,7 +116,7 @@ get_random_port() {
 	while (a < 1000) {
 		srand(time(NULL));
 		a = rand();
-		a = a % 65535;
+		a &= 0xffff;
 	}
 	return (a);
 }
@@ -139,10 +139,6 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 	char * complete_address_buffer;
 
 	getifaddrs(&ifAddrStruct);
-
-	// Be ready to accept both IPV4 and IPV6 interfaces; IPV4 is default
-	int ipv4 = 1;
-	char address_buffer_ipv4[INET_ADDRSTRLEN];
 	char address_buffer_ipv6[INET6_ADDRSTRLEN];
 
 	for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
@@ -150,42 +146,15 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 		if (!ifa->ifa_addr)
 			continue;
 
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-
-			/*
-			 * We don't want local interfaces, but rather the
-			 * interface visible to the internet
-			 */
-			if (strcmp(ifa->ifa_name, "lo0") == 0)
-				continue;
-
-			// We obtain a valid IPV4 address
-			tmpAddrPtr=
-			&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
-			inet_ntop(AF_INET, tmpAddrPtr, address_buffer_ipv4,
-				INET_ADDRSTRLEN);
-		}
-
-		// Analogously, we perform the same procedure with IPV6
-		else if (ifa->ifa_addr->sa_family == AF_INET6) {
-
-			/*
-			 * If the client specified non-extended passive mode,
-			 * we must return only IPv4 Addresses
-			 */
-			if (IPV4ONLY)
-				continue;
+		else {
 
 			if (strcmp(ifa->ifa_name, "lo0") == 0)
 				continue;
 
 			tmpAddrPtr=
 			&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
-			inet_ntop(AF_INET6, tmpAddrPtr, address_buffer_ipv6,
+			inet_ntop(ifa->ifa_addr->sa_family, tmpAddrPtr, address_buffer_ipv6,
 				INET6_ADDRSTRLEN);
-
-			// Disable IPV4
-			ipv4 = 0;
 		}
 	}
 
@@ -200,10 +169,8 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 	 * actually just simple moving around of strings and characters
 	 */
 	char * buf_ptr = NULL;
-	if (ipv4)
-		buf_ptr = address_buffer_ipv4;
-	else
-		buf_ptr = address_buffer_ipv6;
+	
+	buf_ptr = address_buffer_ipv6;
 
 	for (int i = 0; i < strlen(buf_ptr); i++) {
 
@@ -211,47 +178,18 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 			buf_ptr[i] = ',';
 	}
 
-	if (ipv4) {
+	
+	complete_address_buffer = calloc(INET6_ADDRSTRLEN+15, 1);
+	strcat(complete_address_buffer, "(");
+	strcat(complete_address_buffer, "|||");
 
-		complete_address_buffer = calloc(INET_ADDRSTRLEN+15, 1);
+	char * port_string = calloc(6, 1);
+	sprintf(port_string, "%d", port);
+	strcat(complete_address_buffer, port_string);
 
-		strcat(complete_address_buffer, "(");
-		strcat(complete_address_buffer, buf_ptr);
-		strcat(complete_address_buffer, ",");
-
-		/*
-		 * Manipulate the port number to split it into
-		 * upper bits and lower bits
-		 */
-		unsigned int lower_bits = port & 0xFF;
-		char * lower_bits_string = calloc(4, 1);
-		sprintf(lower_bits_string, "%d", lower_bits);
-
-		unsigned int higher_bits = port & 0xFF00;
-		higher_bits = higher_bits >> 8;
-		char * higher_bits_string = calloc(4, 1);
-		sprintf(higher_bits_string, "%d", higher_bits);
-
-		strcat(complete_address_buffer, higher_bits_string);
-		strcat(complete_address_buffer, ",");
-		strcat(complete_address_buffer, lower_bits_string);
-		strcat(complete_address_buffer, ")");
-		strcat(complete_address_buffer, "\0");
-	} else {
-
-		complete_address_buffer = calloc(INET6_ADDRSTRLEN+15, 1);
-
-		strcat(complete_address_buffer, "(");
-		strcat(complete_address_buffer, "|||");
-
-		char * port_string = calloc(6, 1);
-		sprintf(port_string, "%d", port);
-		strcat(complete_address_buffer, port_string);
-
-		strcat(complete_address_buffer, "|)");
-		strcat(complete_address_buffer, "\0");
-		free(port_string);
-	}
+	strcat(complete_address_buffer, "|)");
+	strcat(complete_address_buffer, "\0");
+	free(port_string);
 
 	/*
 	 * Deallocate resources, and return the

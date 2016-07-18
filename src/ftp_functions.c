@@ -1,6 +1,27 @@
 #include "ftp_functions.h"
 #include "utils.h"
 
+
+static const command_matcher_t commands[] = 
+{ {"USER",USER_HANDLER},
+  {"PASS", PASS_HANDLER},
+  {"SYST", SYST_HANDLER},
+  {"FEAT", FEAT_HANDLER},
+  {"PWD", PWD_HANDLER},
+  {"PASV", PASV_HANDLER},
+  {"EPSV", EPSV_HANDLER},
+  {"CWD", CWD_HANDLER},
+  {"PORT", PORT_HANDLER},
+  {"TYPE", TYPE_HANDLER},
+  {"LIST", LIST_HANDLER},
+  {"RETR", RETR_HANDLER},
+  {"STOR", STOR_HANDLER},
+  {"APPE", APPE_HANDLER},
+  {"RMD", RMD_HANDLER},
+  {"MKD", MKD_HANDLER},
+  {"QUIT", QUIT_HANDLER},
+};
+
 /*
  * Returns the appropriate handler
  * for a certain
@@ -284,11 +305,20 @@ ftp_thread(void * args) {
 			 * that don't
 			 * affect the actual command
 			 */
+			int degenerate = 1;
+			for (int i = 0; i < sizeof (buf); i++) {
+				if (buf[i] != '\r')
+					degenerate = 0;
+			}
+
+			if (degenerate)
+				error("Error: client sent \
+				degenerate message\n");
+
 			buf[strcspn(buf_ptr, "\r\n")] = 0;
 			// Obtain the command name
 			char * command = strtok(buf_ptr, " ");
 
-			get_handler(command);
 			current_context.input_command = command;
 			void (*handler)(client_context_t * current_context) =
 				get_handler(command);

@@ -9,7 +9,8 @@ volatile sig_atomic_t QUIT_FLAG = 0;
 
 
 // Safe signal handler
-void handler(int signal) {
+void
+handler(int signal) {
 
 	QUIT_FLAG = 1;
 }

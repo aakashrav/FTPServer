@@ -31,141 +31,17 @@ void
 (*get_handler(char * command))(client_context_t *)
 {
 	/*
-	 * USER authentication command. We will use anonymous FTP, so this
-	 * command is simply for completeness
+	 * Go through the handlers and return the appropriate one
 	 */
-	if (strcmp(command, "USER") == 0) {
-		return (USER_HANDLER);
+	for (int i = 0; i < (sizeof (commands)/ sizeof(commands[0])); i++) {
+
+		if (!(strcmp(command, commands[i].command)))
+			return commands[i].handler;
+
 	}
 
-	/*
-	 * PASS authentication command. We will use anonymous FTP, so
-	 *  this command is simply for completeness
-	 */
-	else if (strcmp(command, "PASS") == 0) {
-		return (PASS_HANDLER);
-	}
-
-	/*
-	 * SYST command, send details about the FTP's
-	 * ambient operating system
-	 */
-	else if (strcmp(command, "SYST") == 0) {
-		return (SYST_HANDLER);
-	}
-
-	/*
-	 * Send details about the features of the FTP Server
-	 * implementation
-	 */
-	else if (strcmp(command, "FEAT") == 0) {
-		return (FEAT_HANDLER);
-	}
-
-	/*
-	 *  Send client details about the current working directory of
-	 * the server executable
-	 */
-	else if (strcmp(command, "PWD") == 0) {
-		return (PWD_HANDLER);
-	}
-
-	/*
-	 * Server recieves command from client directing its
-	 * switch to Passive mode FTP with *IPV4 Only
-	 */
-	else if (strcmp(command, "PASV") == 0) {
-		return (PASV_HANDLER);
-	}
-
-	/*
-	 * Server recieves command from client directing its switch to
-	 * Passive mode FTP with *Both IPv4 and IPv6*
-	 */
-	else if (strcmp(command, "EPSV") == 0) {
-		return (EPSV_HANDLER);
-	}
-
-	/*
-	 * Command to change the working directory of
-	 * the server executable
-	 */
-	else if (strcmp(command, "CWD") == 0) {
-		return (CWD_HANDLER);
-	}
-
-	/*
-	 * Client activates Active mode FTP by issuing
-	 * the PORT command with the PORT
-	 * that it will listen to for future data transfer connections
-	 */
-	else if (strcmp(command, "PORT") == 0) {
-		return (PORT_HANDLER);
-	}
-
-	else if (strcmp(command, "TYPE") == 0) {
-		return (TYPE_HANDLER);
-	}
-
-	/*
-	 * Client command asking to recieve a list of
-	 * contents of the current working directory
-	 * of the server executable
-	 */
-	else if (strcmp(command, "LIST") == 0) {
-		return (LIST_HANDLER);
-	}
-
-	// Client has issued a command to get a certain file
-	else if (strcmp(command, "RETR") == 0) {
-		return (RETR_HANDLER);
-	}
-
-	/*
-	 * The client has issued a command requesting to
-	 * store a file on the server,
-	 * in the current working directory of the program
-	 */
-	else if (strcmp(command, "STOR") == 0) {
-		return (STOR_HANDLER);
-	}
-
-	else if (strcmp(command, "APPE") == 0) {
-		return (APPE_HANDLER);
-	}
-
-	/*
-	 * Client has issued the command to remove a specified directory
-	 */
-	else if (strcmp(command, "RMD") == 0) {
-		return (RMD_HANDLER);
-	}
-
-	/*
-	 * Client has issued the command to make a new directory
-	 */
-	else if (strcmp(command, "MKD") == 0) {
-		return (MKD_HANDLER);
-	}
-
-	/*
-	 * Client has exited FTP,
-	 * we wish the client a goodbye
-	 * and close this connection.
-	 */
-	else if ((strcmp(command, "QUIT") == 0) || \
-		(strcmp(command, "quit") == 0)) {
-		return (QUIT_HANDLER);
-	}
-
-	/*
-	 * The command issued by the client could
-	 * not be matched
-	 * with any of the commands supported by the server
-	 */
-	else {
-		return (OTHER_HANDLER);
-	}
+	// Case where no handler was found for the command.
+	return OTHER_HANDLER;
 }
 
 /*

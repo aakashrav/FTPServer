@@ -50,10 +50,10 @@ typedef struct client_context {
  * Create a structure for matching different
  * FTP commands to their specific handlers
  */
- typedef struct command_matcher {
- 	char * command;
- 	void (*handler)(client_context_t * context);
- } command_matcher_t;
+typedef struct command_matcher {
+	char * command;
+	void (*handler)(client_context_t * context);
+} command_matcher_t;
 
 /*
  *  Returns the appropriate handler for a certain

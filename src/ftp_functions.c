@@ -2,24 +2,24 @@
 #include "utils.h"
 
 
-static const command_matcher_t commands[] = 
-{ {"USER",USER_HANDLER},
-  {"PASS", PASS_HANDLER},
-  {"SYST", SYST_HANDLER},
-  {"FEAT", FEAT_HANDLER},
-  {"PWD", PWD_HANDLER},
-  {"PASV", PASV_HANDLER},
-  {"EPSV", EPSV_HANDLER},
-  {"CWD", CWD_HANDLER},
-  {"PORT", PORT_HANDLER},
-  {"TYPE", TYPE_HANDLER},
-  {"LIST", LIST_HANDLER},
-  {"RETR", RETR_HANDLER},
-  {"STOR", STOR_HANDLER},
-  {"APPE", APPE_HANDLER},
-  {"RMD", RMD_HANDLER},
-  {"MKD", MKD_HANDLER},
-  {"QUIT", QUIT_HANDLER},
+static const command_matcher_t commands[] =
+{ {"USER", USER_HANDLER},
+	{"PASS", PASS_HANDLER},
+	{"SYST", SYST_HANDLER},
+	{"FEAT", FEAT_HANDLER},
+	{"PWD", PWD_HANDLER},
+	{"PASV", PASV_HANDLER},
+	{"EPSV", EPSV_HANDLER},
+	{"CWD", CWD_HANDLER},
+	{"PORT", PORT_HANDLER},
+	{"TYPE", TYPE_HANDLER},
+	{"LIST", LIST_HANDLER},
+	{"RETR", RETR_HANDLER},
+	{"STOR", STOR_HANDLER},
+	{"APPE", APPE_HANDLER},
+	{"RMD", RMD_HANDLER},
+	{"MKD", MKD_HANDLER},
+	{"QUIT", QUIT_HANDLER},
 };
 
 /*
@@ -33,15 +33,15 @@ void
 	/*
 	 * Go through the handlers and return the appropriate one
 	 */
-	for (int i = 0; i < (sizeof (commands)/ sizeof(commands[0])); i++) {
+	for (int i = 0; i < (sizeof (commands)/ sizeof (commands[0])); i++) {
 
 		if (!(strcmp(command, commands[i].command)))
-			return commands[i].handler;
+			return (commands[i].handler);
 
 	}
 
 	// Case where no handler was found for the command.
-	return OTHER_HANDLER;
+	return (OTHER_HANDLER);
 }
 
 /*

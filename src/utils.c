@@ -153,7 +153,8 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 
 			tmpAddrPtr=
 			&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
-			inet_ntop(ifa->ifa_addr->sa_family, tmpAddrPtr, address_buffer_ipv6,
+			inet_ntop(ifa->ifa_addr->sa_family, tmpAddrPtr,
+				address_buffer_ipv6,
 				INET6_ADDRSTRLEN);
 		}
 	}
@@ -169,7 +170,7 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 	 * actually just simple moving around of strings and characters
 	 */
 	char * buf_ptr = NULL;
-	
+
 	buf_ptr = address_buffer_ipv6;
 
 	for (int i = 0; i < strlen(buf_ptr); i++) {
@@ -178,7 +179,7 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 			buf_ptr[i] = ',';
 	}
 
-	
+
 	complete_address_buffer = calloc(INET6_ADDRSTRLEN+15, 1);
 	strcat(complete_address_buffer, "(");
 	strcat(complete_address_buffer, "|||");

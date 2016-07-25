@@ -14,6 +14,7 @@ static const command_matcher_t commands[] =
 	{"PORT", PORT_HANDLER},
 	{"TYPE", TYPE_HANDLER},
 	{"LIST", LIST_HANDLER},
+	{"EPRT", LIST_HANDLER},
 	{"RETR", RETR_HANDLER},
 	{"STOR", STOR_HANDLER},
 	{"APPE", APPE_HANDLER},

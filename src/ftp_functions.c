@@ -195,7 +195,7 @@ ftp_thread(void * args) {
 			// Obtain the command name
 			char * command = strtok(buf_ptr, " ");
 
-			print_debug("Client input: ");
+			print_debug("\nClient input: ");
 			print_debug(command);
 			current_context.input_command = command;
 			void (*handler)(client_context_t * current_context) =

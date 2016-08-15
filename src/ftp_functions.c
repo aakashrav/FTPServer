@@ -198,6 +198,7 @@ ftp_thread(void * args) {
 			char * command = strtok(buf_ptr, " ");
 
 			printf("This is the command: %s\n", command);
+			fflush(stdout);
 
 			print_debug("\nClient input: ");
 			print_debug(command);

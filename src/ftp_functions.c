@@ -402,6 +402,7 @@ PASV_HANDLER(client_context_t * current_context) {
 
 	// We switch active mode off and deallocate resources
 	current_context->active_flag = 0;
+	printf("New active flag: %d\n", current_context->active_flag);
 	free(full_client_message);
 	full_client_message = NULL;
 	free(local_ip_address);

@@ -10,6 +10,7 @@ static const command_matcher_t commands[] =
 	{"PWD", PWD_HANDLER},
 	{"PASV", PASV_HANDLER},
 	{"EPSV", EPSV_HANDLER},
+	{"PASS", EPSV_HANDLER},
 	{"CWD", CWD_HANDLER},
 	{"PORT", PORT_HANDLER},
 	{"TYPE", TYPE_HANDLER},

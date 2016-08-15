@@ -362,6 +362,9 @@ void
 PASV_HANDLER(client_context_t * current_context) {
 	print_debug("Client issued command PASV!\n");
 
+	printf("IN HERE!\n");
+	fflush(stdout);
+
 	// Choose a random port to listen for data connections
 	current_context->data_port = get_random_port();
 

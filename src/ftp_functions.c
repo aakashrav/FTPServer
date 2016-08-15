@@ -197,7 +197,7 @@ ftp_thread(void * args) {
 			// Obtain the command name
 			char * command = strtok(buf_ptr, " ");
 
-			printf("This is the command: %s\n", command);
+			printf("This is the command: %s4\n", command);
 			fflush(stdout);
 
 			print_debug("\nClient input: ");

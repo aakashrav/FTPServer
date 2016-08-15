@@ -9,7 +9,6 @@ static const command_matcher_t commands[] =
 	{"FEAT", FEAT_HANDLER},
 	{"PWD", PWD_HANDLER},
 	{"PASV", PASV_HANDLER},
-	{"PASS", PASV_HANDLER},
 	{"EPSV", EPSV_HANDLER},
 	{"CWD", CWD_HANDLER},
 	{"PORT", PORT_HANDLER},
@@ -128,7 +127,7 @@ ftp_thread(void * args) {
 		 * communicating via active or passive FTP.
 		 * Default is active mode.
 		 */
-		current_context.active_flag = 1;
+		current_context.active_flag = 0;
 		/*
 		 * Keep track of whether the client has requested ASCII
 		 * file transfer or binary file transfer. At the beginning,
@@ -196,9 +195,6 @@ ftp_thread(void * args) {
 			buf[strcspn(buf_ptr, "\r\n")] = 0;
 			// Obtain the command name
 			char * command = strtok(buf_ptr, " ");
-
-			printf("This is the command: %s4\n", command);
-			fflush(stdout);
 
 			print_debug("\nClient input: ");
 			print_debug(command);
@@ -365,9 +361,6 @@ void
 PASV_HANDLER(client_context_t * current_context) {
 	print_debug("Client issued command PASV!\n");
 
-	printf("IN HERE!\n");
-	fflush(stdout);
-
 	// Choose a random port to listen for data connections
 	current_context->data_port = get_random_port();
 
@@ -408,7 +401,6 @@ PASV_HANDLER(client_context_t * current_context) {
 
 	// We switch active mode off and deallocate resources
 	current_context->active_flag = 0;
-	printf("New active flag: %d\n", current_context->active_flag);
 	free(full_client_message);
 	full_client_message = NULL;
 	free(local_ip_address);

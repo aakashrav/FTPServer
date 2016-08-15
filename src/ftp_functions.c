@@ -173,6 +173,11 @@ ftp_thread(void * args) {
 		memset(buf_ptr, 0, sizeof (buf));
 
 		/*
+		 * Default to passive
+		 */
+		PASV_HANDLER(&current_context);
+		
+		/*
 		 * While the client is sending us a message,
 		 * process the message.
 		 */

@@ -127,7 +127,7 @@ ftp_thread(void * args) {
 		 * communicating via active or passive FTP.
 		 * Default is active mode.
 		 */
-		current_context.active_flag = 0;
+		current_context.active_flag = 1;
 		/*
 		 * Keep track of whether the client has requested ASCII
 		 * file transfer or binary file transfer. At the beginning,
@@ -172,11 +172,6 @@ ftp_thread(void * args) {
 		char * buf_ptr = buf;
 		memset(buf_ptr, 0, sizeof (buf));
 
-		/*
-		 * Default to passive
-		 */
-		PASV_HANDLER(&current_context);
-		
 		/*
 		 * While the client is sending us a message,
 		 * process the message.

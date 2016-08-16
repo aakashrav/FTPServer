@@ -210,6 +210,8 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 int
 get_active_client_connection(const char * ip_address, const char * port) {
 
+	printf("Chosen port: %s\n",port);
+	fflush(stdout);
 	/*
 	 * Initialize various structures and parameters
 	 * used for the getaddrinfo/4 function

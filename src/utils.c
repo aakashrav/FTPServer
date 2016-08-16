@@ -252,12 +252,9 @@ get_active_client_connection(const char * ip_address, const char * port) {
 		error("Error in IPV6 socket \
 			establishment in active client connection.\n");
 	err = connect(fd, res->ai_addr, res->ai_addrlen);
-	if (err < 0) {
-		printf("%s\n", res->ai_addr);
-		fflush(stdout);
+	if (err < 0)
 		error("Error in 'connect'ing to the \
 			active client port with IPV6.\n");
-	}
 
 	/*
 	 * Return the obtained socket file descriptor

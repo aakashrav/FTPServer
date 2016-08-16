@@ -211,6 +211,7 @@ int
 get_active_client_connection(const char * ip_address, const char * port) {
 
 	printf("Chosen port: %s\n",port);
+	printf("Chosen IP address: %s\n", ip_address);
 	fflush(stdout);
 	/*
 	 * Initialize various structures and parameters

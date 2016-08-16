@@ -714,7 +714,7 @@ LIST_HANDLER(client_context_t * current_context) {
 			 */
 			int data_port;
 			sscanf(portstr, "%d", &data_port);
-			printf("Real port: %s",data_port);
+			printf("Real port: %d",data_port);
 			sprintf(portstr, "%d", data_port+1);
 			current_context->data_fd =
 			get_active_client_connection(hoststr,

@@ -712,9 +712,9 @@ LIST_HANDLER(client_context_t * current_context) {
 			 * used for data transfers, was provided earlier via
 			 * the PORT command
 			 */
-			printf("Real port: %s",data_port);
 			int data_port;
 			sscanf(portstr, "%d", &data_port);
+			printf("Real port: %s",data_port);
 			sprintf(portstr, "%d", data_port+1);
 			current_context->data_fd =
 			get_active_client_connection(hoststr,

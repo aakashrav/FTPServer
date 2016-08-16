@@ -148,9 +148,7 @@ ftp_thread(void * args) {
 		strcat(new_path, "/");
 
 		current_context.current_working_directory = new_path;
-		// Default data port
-		current_context.PORT = calloc(6, 1);
-		sprintf(current_context.PORT, "%d", 20);
+		current_context.PORT = NULL;
 		current_context.client_addr = client.client_addr;
 		/*
 		 * File descriptor for 'accept'ing
@@ -716,7 +714,7 @@ LIST_HANDLER(client_context_t * current_context) {
 			 */
 			current_context->data_fd =
 			get_active_client_connection(hoststr,
-				current_context->PORT);
+				portstr);
 
 			/*
 			 * If we for some reason fail
@@ -950,7 +948,7 @@ STOR_HANDLER(client_context_t * current_context) {
 			 */
 			current_context->data_fd =
 			get_active_client_connection(hoststr,
-				current_context->PORT);
+				portstr);
 
 			/*
 			 * If we for some reason fail when trying to connect to
@@ -1132,7 +1130,7 @@ APPE_HANDLER(client_context_t * current_context) {
 			 */
 			current_context->data_fd =
 			get_active_client_connection(hoststr,
-				current_context->PORT);
+				portstr);
 
 			/*
 			 * If we for some reason fail when trying to connect
@@ -1313,7 +1311,7 @@ RETR_HANDLER(client_context_t * current_context) {
 			 */
 			current_context->data_fd =
 			get_active_client_connection(hoststr,
-				current_context->PORT);
+				portstr);
 
 			/*
 			 * If we for some reason fail when trying to connect

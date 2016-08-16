@@ -148,7 +148,9 @@ ftp_thread(void * args) {
 		strcat(new_path, "/");
 
 		current_context.current_working_directory = new_path;
-		current_context.PORT = NULL;
+		// Default data port
+		current_context.PORT = calloc(6, 1);
+		sprintf(current_context.PORT, "%d", 20);
 		current_context.client_addr = client.client_addr;
 		/*
 		 * File descriptor for 'accept'ing

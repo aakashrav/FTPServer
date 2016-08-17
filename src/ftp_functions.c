@@ -712,13 +712,9 @@ LIST_HANDLER(client_context_t * current_context) {
 			 * used for data transfers, was provided earlier via
 			 * the PORT command
 			 */
-			int data_port;
-			sscanf(portstr, "%d", &data_port);
-			printf("Real port: %d",data_port);
-			sprintf(portstr, "%d", data_port+1);
 			current_context->data_fd =
 			get_active_client_connection(hoststr,
-				portstr);
+				current_context->PORT);
 
 			/*
 			 * If we for some reason fail
@@ -950,12 +946,9 @@ STOR_HANDLER(client_context_t * current_context) {
 			 * This different port, used for data transfers, was
 			 * provided earlier via the PORT command.
 			 */
-			int data_port;
-			sscanf(portstr, "%d", &data_port);
-			sprintf(portstr, "%d", data_port+1);
 			current_context->data_fd =
 			get_active_client_connection(hoststr,
-				portstr);
+				current_context->PORT);
 
 			/*
 			 * If we for some reason fail when trying to connect to
@@ -1135,12 +1128,9 @@ APPE_HANDLER(client_context_t * current_context) {
 			 * This different port, used for data transfers, was
 			 * provided earlier via the PORT command
 			 */
-			int data_port;
-			sscanf(portstr, "%d", &data_port);
-			sprintf(portstr, "%d", data_port+1);
 			current_context->data_fd =
 			get_active_client_connection(hoststr,
-				portstr);
+				current_context->PORT);
 
 			/*
 			 * If we for some reason fail when trying to connect
@@ -1319,12 +1309,9 @@ RETR_HANDLER(client_context_t * current_context) {
 			 * This different port, used for data transfers, was
 			 * provided earlier via the PORT command
 			 */
-			int data_port;
-			sscanf(portstr, "%d", &data_port);
-			sprintf(portstr, "%d", data_port+1);
 			current_context->data_fd =
 			get_active_client_connection(hoststr,
-				portstr);
+				current_context->PORT);
 
 			/*
 			 * If we for some reason fail when trying to connect

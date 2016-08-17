@@ -21,8 +21,8 @@ error(const char * message) {
 	// Print the error message
 	perror(message);
 	// Deallocate resources related to the thread pool and mutexes
-	// destroy();
-	free_jobs(head);
+	destroy();
+	// free_jobs(head);
 	exit(1);
 }
 

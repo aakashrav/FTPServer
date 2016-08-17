@@ -22,7 +22,7 @@ error(const char * message) {
 	perror(message);
 	// Deallocate resources related to the thread pool and mutexes
 	destroy();
-	// free_jobs(head);
+	free_jobs(head);
 	exit(1);
 }
 
@@ -93,7 +93,7 @@ dequeue(job_t *head) {
 void
 free_jobs(job_t * head) {
 
-	while (head != NULL) {
+	while (head->next != NULL) {
 		job_t * next = head->next;
 		free(head);
 		head = next;

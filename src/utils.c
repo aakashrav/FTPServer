@@ -31,11 +31,9 @@ int
 destroy() {
 
 	pthread_mutex_destroy(job_queue_lock);
-	free(job_queue_lock);
 	job_queue_lock = NULL;
 
 	pthread_cond_destroy(job_available);
-	free(job_available);
 	job_available = NULL;
 
 	free_jobs(head);

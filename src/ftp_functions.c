@@ -519,7 +519,7 @@ EPRT_HANDLER(client_context_t * current_context) {
 	// Separate IP Address from port name based on |
 	strtok(current_context->input_command, "|");
 	// Read until we get the two numbers corresponding to the port
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 2; i++) {
 		current_context->input_command = strtok(NULL, "|");
 		print_debug(current_context->input_command);
 		print_debug("\n");

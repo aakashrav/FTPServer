@@ -444,6 +444,11 @@ EPSV_HANDLER(client_context_t * current_context) {
 	strcat(full_client_message, "229 Entering passive mode. ");
 	strcat(full_client_message, local_ip_address);
 	strcat(full_client_message, "\r\n");
+
+	print_debug("Passed address: ")
+	print_debug(full_client_message);
+	print_debug("\n");
+	
 	ssize_t nwrite = write(current_context->client_comm_fd,
 		full_client_message, strlen(full_client_message));
 	if (nwrite < 0)
@@ -513,16 +518,11 @@ EPRT_HANDLER(client_context_t * current_context) {
 	 * FTP standards
 	 */
 	current_context->input_command = strtok(NULL, " ");
-	// Start reading the IP Address and port
-	print_debug(current_context->input_command);
-	print_debug("\n");
 	// Separate IP Address from port name based on |
 	strtok(current_context->input_command, "|");
 	// Read until we get the two numbers corresponding to the port
 	for (int i = 0; i < 2; i++) {
 		current_context->input_command = strtok(NULL, "|");
-		print_debug(current_context->input_command);
-		print_debug("\n");
 	}
 
 	current_context->PORT = calloc(6, 1);

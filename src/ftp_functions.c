@@ -526,7 +526,7 @@ EPRT_HANDLER(client_context_t * current_context) {
 	}
 
 	current_context->PORT = calloc(6, 1);
-	sprintf(current_context->PORT, "%s", strtok(NULL,"|"));
+	sprintf(current_context->PORT, "%s", current_context->input_command);
 
 	print_debug("Port via EPRT: ");
 	print_debug(current_context->PORT);

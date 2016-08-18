@@ -122,6 +122,10 @@ CWD_HANDLER(client_context_t * current_context);
 void
 PORT_HANDLER(client_context_t * current_context);
 
+// Handler function for the EPRT FTP command
+void
+EPRT_HANDLER(client_context_t * current_context);
+
 // Handler function for the TYPE FTP command
 void
 TYPE_HANDLER(client_context_t * current_context);

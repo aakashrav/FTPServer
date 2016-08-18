@@ -14,7 +14,7 @@ static const command_matcher_t commands[] =
 	{"PORT", PORT_HANDLER},
 	{"TYPE", TYPE_HANDLER},
 	{"LIST", LIST_HANDLER},
-	{"EPRT", LIST_HANDLER},
+	{"EPRT", EPRT_HANDLER},
 	{"RETR", RETR_HANDLER},
 	{"STOR", STOR_HANDLER},
 	{"APPE", APPE_HANDLER},
@@ -499,6 +499,47 @@ CWD_HANDLER(client_context_t * current_context) {
 
 	if (nwrite < 0)
 		error("Error on writing CWD status to client\n");
+}
+
+
+// Handler function for the EPRT FTP command
+void 
+EPRT_HANDLER(client_context_t * current_context) {
+	print_debug("Client issued command EPRT!\n");
+
+	/*
+	 * Get IP Address + port name, formatted according to
+	 * the norms of the RFC
+	 * FTP standards
+	 */
+	current_context->input_command = strtok(NULL, " ");
+	// Start reading the IP Address and port
+	strtok(NULL," ");
+
+	// Separate IP Address from port name based on |
+	strtok(current_context->input_command, "|");
+	// Read until we get the two numbers corresponding to the port
+	for (int i = 0; i < 3; i++)
+		strtok(NULL, "|");
+
+	current_context->PORT = calloc(6, 1);
+	sprintf(current_context->PORT, "%s", strtok(NULL,"|"));
+
+	print_debug("Port via EPRT: ");
+	print_debug(current_context->PORT);
+	print_debug("\n");
+
+	// Send successful active FTP activation confirmation to client
+	ssize_t nwrite = write(current_context->client_comm_fd,
+		"200 Entering active mode\r\n",
+		strlen("200 Entering active mode\r\n"));
+
+	if (nwrite < 0)
+		error("Error on writing active FTP success \
+			status to client\n");
+
+	// Switch the active FTP flag on
+	current_context->active_flag = 1;
 }
 
 // Handler function for the PORT FTP command

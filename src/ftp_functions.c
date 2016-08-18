@@ -514,7 +514,6 @@ EPRT_HANDLER(client_context_t * current_context) {
 	 */
 	current_context->input_command = strtok(NULL, " ");
 	// Start reading the IP Address and port
-	strtok(NULL," ");
 
 	// Separate IP Address from port name based on |
 	strtok(current_context->input_command, "|");

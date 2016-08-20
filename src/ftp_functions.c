@@ -1551,6 +1551,9 @@ initiate_server(long port) {
 		if (res->ai_family == AF_INET6) {
 
 			fd = socket(AF_INET6, SOCK_STREAM, 0);
+			if (fd < 0) {
+				error("Error on initiating server!\n");
+			}
 			
 			// Allow socket to be reused
 			if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, \

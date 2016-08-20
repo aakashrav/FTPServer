@@ -1,11 +1,15 @@
 #include <getopt.h>
 #include <poll.h>
 #include <signal.h>
+#include <ctype.h>
 #include "ftp_functions.h"
 #include "utils.h"
 
 // Volatile quit variable
 volatile sig_atomic_t QUIT_FLAG = 0;
+
+// p for port, h for help
+static const char * optstring = "p:h";
 
 
 // Safe signal handler
@@ -15,19 +19,67 @@ handler(int signal) {
 	QUIT_FLAG = 1;
 }
 
+// Check if input is a number
+int
+check_if_number(const char * input) {
+	int length = strlen (input);
+    for (int i=0;i<length; i++)
+        if (!isdigit(input[i]))
+        {
+            return 0;
+        }
+
+    return 1;
+}
+
 void
 usage() {
 
-	printf("Usage: /sftp2_server <port>\n");
+	printf("Usage: /sftp2_server [-p <port>] [-h]\n");
+	fflush(stdout);
+}
+
+void
+invalid_port() {
+	printf("Please provide a valid port!\n");
 	fflush(stdout);
 }
 
 int
 main(int argc, char * argv[]) {
 
+	long port = -1;
+
 	if (argc < 2) {
 
 		usage();
+		exit(1);
+	}
+
+	int opt = getopt(argc, argv, optstring);
+
+	while (opt!=-1) {
+		switch(opt) {
+			case 'p':
+				if (check_if_number(optarg) == 1)
+					port = atol(optarg);
+				else {
+					invalid_port();
+					usage();
+					exit(1);
+				}
+				break;
+			case 'h':
+				usage();
+				exit(0);
+		}
+
+		opt = getopt(argc, argv, optstring);
+	}
+
+	// Ensure we have a valid port number
+	if ( (port < 0) || (port > 65535) ) {
+		invalid_port();
 		exit(1);
 	}
 
@@ -42,8 +94,6 @@ main(int argc, char * argv[]) {
 		error("Error registering signal handler for SIGUSR2.\n");
 	}
 
-	// Obtain the port that the server will run on
-	long port = atol(argv[1]);
 	int err;
 
 	// Initiate the server socket running at the specified port

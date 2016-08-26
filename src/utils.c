@@ -131,12 +131,15 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 	 * the local machine and combine it
 	 * with the inputted port
 	 */
-	struct ifaddrs * ifAddrStruct = NULL;
-	struct ifaddrs * ifa = NULL;
+	struct ifaddrs * ifAddrStruct;
+	struct ifaddrs * ifa;
 	void * tmpAddrPtr = NULL;
 	char * complete_address_buffer;
 
-	getifaddrs(&ifAddrStruct);
+	if (getifaddrs(&ifAddrStruct) == -1) {
+		error("Error in getifaddrs when getting local IP address");
+	}
+
 	char address_buffer_ipv6[INET6_ADDRSTRLEN];
 
 	for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {

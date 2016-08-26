@@ -196,8 +196,9 @@ ftp_thread(void * args) {
 			// Obtain the command name
 			char * command = strtok(buf_ptr, " ");
 
-			print_debug("\nClient input: ");
+			print_debug("Client input: ");
 			print_debug(command);
+			print_debug("\n");
 			current_context.input_command = command;
 			void (*handler)(client_context_t * current_context) =
 				get_handler(command);
@@ -209,9 +210,6 @@ ftp_thread(void * args) {
 			 * removing any residual characters
 			 */
 			memset(buf_ptr, 0, sizeof (buf));
-			print_debug("Active flag\n");
-			printf("%d", current_context.active_flag);
-			print_debug("\n");
 		}
 
 		/*
@@ -857,7 +855,7 @@ STOR_HANDLER(client_context_t * current_context) {
 		 * the same file descriptor
 		 */
 		if (errno == EEXIST) {
-			print_debug("ERROR: Concurrent creation\
+			print_debug("ERROR: Concurrent creation \
 				of the same file \
 				descriptor! \n");
 

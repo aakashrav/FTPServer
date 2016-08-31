@@ -450,10 +450,10 @@ EPSV_HANDLER(client_context_t * current_context) {
 
 	// We switch active mode off and deallocate resources
 	current_context->active_flag = 0;
-	free(full_client_message);
-	full_client_message = NULL;
-	// free(local_ip_address);
-	// local_ip_address = NULL;
+	// free(full_client_message);
+	// full_client_message = NULL;
+	free(local_ip_address);
+	local_ip_address = NULL;
 }
 
 // Handler function for the CWD FTP command

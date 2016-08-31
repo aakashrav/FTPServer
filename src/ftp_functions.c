@@ -638,7 +638,7 @@ LIST_HANDLER(client_context_t * current_context) {
 		LIST(current_context->current_working_directory);
 
 	print_debug("Finished Here\n");
-	
+
 	/*
 	 * Format and send the status message to the client,
 	 * along with the contents
@@ -1449,6 +1449,7 @@ MKD_HANDLER(client_context_t * current_context) {
  */
 char *
 LIST(char * dir_name) {
+	print_debug("Finished here too! \n");
 	// Open the inputted working directory
 	DIR * d;
 	d = opendir(dir_name);

@@ -438,7 +438,7 @@ EPSV_HANDLER(client_context_t * current_context) {
 	 */
 	char * full_client_message =
 	(char *) calloc(strlen("229 Entering passive mode. \r\n")
-	+ strlen(local_ip_address), 1);
+	+ strlen(local_ip_address)+2, 1);
 	strcat(full_client_message, "229 Entering passive mode. ");
 	strcat(full_client_message, local_ip_address);
 	strcat(full_client_message, "\r\n");

@@ -16,4 +16,3 @@ clean:
 	-rm $(EXECUTABLE_DIRECTORY)/ftp2_server
 	-rm $(SERVER_OBJECTS) 2>/dev/null
 	-rm $(SERVER_SOURCES:.c=.d) 2>/dev/null
-	-rm $(EXECUTABLE_DIRECTORY)/ftp2_server

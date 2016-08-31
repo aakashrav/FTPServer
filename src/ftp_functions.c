@@ -454,7 +454,6 @@ EPSV_HANDLER(client_context_t * current_context) {
 	full_client_message = NULL;
 	free(local_ip_address);
 	local_ip_address = NULL;
-	print_debug("Finished here! \n");
 }
 
 // Handler function for the CWD FTP command
@@ -647,6 +646,7 @@ LIST_HANDLER(client_context_t * current_context) {
 	strcat(full_message, directory_list);
 	strcat(full_message, "\r\n");
 
+	print_debug("Finished Here\n");
 	/*
 	 * Handle the case where the client has currently
 	 * chosen passive mode to be their

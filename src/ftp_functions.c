@@ -637,6 +637,8 @@ LIST_HANDLER(client_context_t * current_context) {
 	char * directory_list =
 		LIST(current_context->current_working_directory);
 
+	print_debug("Finished Here\n");
+	
 	/*
 	 * Format and send the status message to the client,
 	 * along with the contents
@@ -645,8 +647,6 @@ LIST_HANDLER(client_context_t * current_context) {
 	char * full_message = calloc(strlen(directory_list)+strlen("\r\n"), 1);
 	strcat(full_message, directory_list);
 	strcat(full_message, "\r\n");
-
-	print_debug("Finished Here\n");
 	/*
 	 * Handle the case where the client has currently
 	 * chosen passive mode to be their

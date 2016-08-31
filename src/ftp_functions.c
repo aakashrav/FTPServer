@@ -454,7 +454,7 @@ EPSV_HANDLER(client_context_t * current_context) {
 	full_client_message = NULL;
 	free(local_ip_address);
 	local_ip_address = NULL;
-	print_debug("Finished here! \n")
+	print_debug("Finished here! \n");
 }
 
 // Handler function for the CWD FTP command

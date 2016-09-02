@@ -112,7 +112,6 @@ get_random_port() {
 
 	int a = 0;
 	while (a < 1000) {
-		srand(time(NULL));
 		a = rand();
 		a &= 0xffff;
 	}
@@ -134,29 +133,50 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 	struct ifaddrs * ifAddrStruct;
 	struct ifaddrs * ifa;
 	void * tmpAddrPtr = NULL;
-	char * complete_address_buffer;
+	char * complete_address_buffer = calloc(INET_ADDRSTRLEN+15, 1);
 
+	/*
+	 * IPV6 mode
+	 */
+	if (!IPV4ONLY) {
+		strcat(complete_address_buffer, "(");
+		strcat(complete_address_buffer, "|||");
+
+		char * port_string = calloc(6, 1);
+		sprintf(port_string, "%d", port);
+		strcat(complete_address_buffer, port_string);
+
+		strcat(complete_address_buffer, "|)");
+		strcat(complete_address_buffer, "\0");
+		free(port_string);
+		return complete_address_buffer;
+	}
+
+	/*
+	 * IPV4 mode
+	 */
 	if (getifaddrs(&ifAddrStruct) == -1) {
 		error("Error in getifaddrs when getting local IP address");
 	}
 
-	char address_buffer_ipv6[INET6_ADDRSTRLEN];
+	char address_buffer_ipv4[INET_ADDRSTRLEN];
 
 	for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
 
 		if (!ifa->ifa_addr)
 			continue;
-
+		else if ((ifa->ifa_addr->sa_family) != AF_INET)
+			continue;
 		else {
 
 			if (strcmp(ifa->ifa_name, "lo0") == 0)
 				continue;
 
 			tmpAddrPtr=
-			&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
+			&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
 			inet_ntop(ifa->ifa_addr->sa_family, tmpAddrPtr,
-				address_buffer_ipv6,
-				INET6_ADDRSTRLEN);
+				address_buffer_ipv4,
+				INET_ADDRSTRLEN);
 		}
 	}
 
@@ -172,7 +192,7 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 	 */
 	char * buf_ptr = NULL;
 
-	buf_ptr = address_buffer_ipv6;
+	buf_ptr = address_buffer_ipv4;
 
 	for (int i = 0; i < strlen(buf_ptr); i++) {
 
@@ -180,19 +200,8 @@ get_formatted_local_ip_address(unsigned int port, int IPV4ONLY) {
 			buf_ptr[i] = ',';
 	}
 
-
-	complete_address_buffer = calloc(INET6_ADDRSTRLEN+15, 1);
-	strcat(complete_address_buffer, "(");
-	strcat(complete_address_buffer, "|||");
-
-	char * port_string = calloc(6, 1);
-	sprintf(port_string, "%d", port);
-	strcat(complete_address_buffer, port_string);
-
-	strcat(complete_address_buffer, "|)");
-	strcat(complete_address_buffer, "\0");
-	free(port_string);
-
+	sprintf(complete_address_buffer,"(%s,%d,%d)",address_buffer_ipv4,\
+		port/256,port%256);
 	/*
 	 * Deallocate resources, and return the
 	 * formatted IP Address and Port

@@ -94,6 +94,9 @@ main(int argc, char * argv[]) {
 		error("Error registering signal handler for SIGUSR2.\n");
 	}
 
+	// Initiate random number generator
+	srand(time(NULL));
+	
 	int err;
 
 	// Initiate the server socket running at the specified port

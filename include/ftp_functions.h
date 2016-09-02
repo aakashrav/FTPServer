@@ -44,6 +44,8 @@ typedef struct client_context {
 	char * PORT;
 	struct sockaddr_storage client_addr;
 	int client_data_fd;
+	int PASV_EPSV_FLAG;
+	int PORT_EPRT_FLAG;
 } client_context_t;
 
 /*
@@ -106,25 +108,17 @@ OTHER_HANDLER(client_context_t * current_context);
 void
 PWD_HANDLER(client_context_t * current_context);
 
-// Handler function for the PASV FTP command
+// Handler function for the PASV and EPSV FTP command
 void
-PASV_HANDLER(client_context_t * current_context);
-
-// Handler function for the EPSV FTP command
-void
-EPSV_HANDLER(client_context_t * current_context);
+PASV_EPSV_HANDLER(client_context_t * current_context);
 
 // Handler function for the CWD FTP command
 void
 CWD_HANDLER(client_context_t * current_context);
 
-// Handler function for the PORT FTP command
+// Handler function for the PORT and EPRT FTP command
 void
-PORT_HANDLER(client_context_t * current_context);
-
-// Handler function for the EPRT FTP command
-void
-EPRT_HANDLER(client_context_t * current_context);
+PORT_EPRT_HANDLER(client_context_t * current_context);
 
 // Handler function for the TYPE FTP command
 void

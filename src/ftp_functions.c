@@ -8,13 +8,13 @@ static const command_matcher_t commands[] =
 	{"SYST", SYST_HANDLER},
 	{"FEAT", FEAT_HANDLER},
 	{"PWD", PWD_HANDLER},
-	{"PASV", PASV_HANDLER},
-	{"EPSV", EPSV_HANDLER},
+	{"PASV", PASV_EPSV_HANDLER},
+	{"EPSV", PASV_EPSV_HANDLER},
 	{"CWD", CWD_HANDLER},
-	{"PORT", PORT_HANDLER},
+	{"PORT", PORT_EPRT_HANDLER},
 	{"TYPE", TYPE_HANDLER},
 	{"LIST", LIST_HANDLER},
-	{"EPRT", EPRT_HANDLER},
+	{"EPRT", PORT_EPRT_HANDLER},
 	{"RETR", RETR_HANDLER},
 	{"STOR", STOR_HANDLER},
 	{"APPE", APPE_HANDLER},
@@ -199,7 +199,17 @@ ftp_thread(void * args) {
 			print_debug("Client input: ");
 			print_debug(command);
 			print_debug("\n");
+
 			current_context.input_command = command;
+			if (!strcmp(command,"PORT"))
+				current_context.PASV_EPSV_FLAG = 0;
+			if (!strcmp(command,"EPSV"))
+				current_context.PASV_EPSV_FLAG = 1;
+			if (!strcmp(command,"PORT"))
+				current_context.PORT_EPRT_FLAG = 0;
+			if (!strcmp(command,"EPRT"))
+				current_context.PORT_EPRT_FLAG = 1;
+
 			void (*handler)(client_context_t * current_context) =
 				get_handler(command);
 			handler(&current_context);
@@ -356,8 +366,11 @@ PWD_HANDLER(client_context_t * current_context) {
 
 // Handler function for the PASV FTP command
 void
-PASV_HANDLER(client_context_t * current_context) {
-	print_debug("Client issued command PASV!\n");
+PASV_EPSV_HANDLER(client_context_t * current_context) {
+	if (current_context->PASV_EPSV_FLAG == 0)
+		print_debug("Client issued command PASV!\n");
+	else
+		print_debug("Client issued command EPSV!\n");
 
 	// Choose a random port to listen for data connections
 	current_context->data_port = get_random_port();
@@ -369,11 +382,14 @@ PASV_HANDLER(client_context_t * current_context) {
 
 	/*
 	 * Get formatted IP Address + Port to send to the client.
-	 * We also specify that we require IPv4 only, since we are not in
-	 * extended passive mode.
 	 */
-	char * local_ip_address =
-		get_formatted_local_ip_address(current_context->data_port, 1);
+	char * local_ip_address;
+	if (current_context->PASV_EPSV_FLAG == 0)
+		local_ip_address =
+			get_formatted_local_ip_address(current_context->data_port, 1);
+	else
+		local_ip_address =
+			get_formatted_local_ip_address(current_context->data_port, 0);
 
 	if (local_ip_address == NULL)
 		error("Error on getting formatted local IP Address\n");
@@ -384,9 +400,13 @@ PASV_HANDLER(client_context_t * current_context) {
 	 * local endpoint of the passive FTP
 	 */
 	char * full_client_message =
-	(char *) calloc(strlen("227 Entering passive mode. \r\n") + \
+	(char *) calloc(strlen("22x Entering passive mode. \r\n") + \
 		strlen(local_ip_address), 1);
-	strcat(full_client_message, "227 Entering passive mode. ");
+	if (current_context->PASV_EPSV_FLAG == 0)
+		strcat(full_client_message, "227 Entering passive mode. ");
+	else
+		strcat(full_client_message, "229 Entering passive mode. ");
+
 	strcat(full_client_message, local_ip_address);
 	strcat(full_client_message, "\r\n");
 	ssize_t nwrite = write(current_context->client_comm_fd,
@@ -396,57 +416,6 @@ PASV_HANDLER(client_context_t * current_context) {
 		error("Error on sending passive \
 			server mode status \
 			to client\n");
-
-	// We switch active mode off and deallocate resources
-	current_context->active_flag = 0;
-	free(full_client_message);
-	full_client_message = NULL;
-	free(local_ip_address);
-	local_ip_address = NULL;
-}
-
-// Handler function for the EPSV FTP command
-void
-EPSV_HANDLER(client_context_t * current_context) {
-	print_debug("Client issued command EPSV!\n");
-
-	// Choose a random port to listen for data connections
-	current_context->data_port = get_random_port();
-
-	/*
-	 * Generate a socket that is listening on the
-	 * randomly generated port
-	 */
-	current_context->data_fd = initiate_server(current_context->data_port);
-	if (current_context->data_fd < 0)
-		error("Error initiating passive FTP socket!\n");
-
-	/*
-	 * Get formatted IP Address + Port
-	 * to send to the client.
-	 */
-	char * local_ip_address =
-		get_formatted_local_ip_address(current_context->data_port, 0);
-
-	if (local_ip_address == NULL)
-		error("Error on getting formatted local IP Address\n");
-
-	/*
-	 * Construct status message for client,
-	 * informing him/her of the
-	 * local endpoint of the passive FTP
-	 */
-	char * full_client_message =
-	(char *) calloc(strlen("229 Entering passive mode. \r\n")
-	+ strlen(local_ip_address)+2, 1);
-	strcat(full_client_message, "229 Entering passive mode. ");
-	strcat(full_client_message, local_ip_address);
-	strcat(full_client_message, "\r\n");
-
-	ssize_t nwrite = write(current_context->client_comm_fd,
-		full_client_message, strlen(full_client_message));
-	if (nwrite < 0)
-		error("Error on sending passive server mode\n");
 
 	// We switch active mode off and deallocate resources
 	current_context->active_flag = 0;
@@ -503,8 +472,11 @@ CWD_HANDLER(client_context_t * current_context) {
 
 // Handler function for the EPRT FTP command
 void 
-EPRT_HANDLER(client_context_t * current_context) {
-	print_debug("Client issued command EPRT!\n");
+PORT_EPRT_HANDLER(client_context_t * current_context) {
+	if (current_context->PORT_EPRT_FLAG == 0)
+		print_debug("Client issued command PORT!\n");
+	else
+		print_debug("Client issued command EPRT!\n");
 
 	/*
 	 * Get IP Address + port name, formatted according to
@@ -512,72 +484,46 @@ EPRT_HANDLER(client_context_t * current_context) {
 	 * FTP standards
 	 */
 	current_context->input_command = strtok(NULL, " ");
-	// Separate IP Address from port name based on |
-	strtok(current_context->input_command, "|");
-	// Read until we get the two numbers corresponding to the port
-	for (int i = 0; i < 2; i++) {
-		current_context->input_command = strtok(NULL, "|");
-	}
+	if (current_context->PORT_EPRT_FLAG == 0) {
+		// Separate IP Address from port name based on commas
+		strtok(current_context->input_command, ",");
+		// Read until we get the two numbers corresponding to the port
+		for (int i = 0; i < 3; i++)
+			strtok(NULL, ",");
 
-	current_context->PORT = calloc(6, 1);
-	sprintf(current_context->PORT, "%s", current_context->input_command);
+		/*
+		 * Obtain the upper bits and lower bits
+		 * of the port
+		 * number in binary
+		 */
+		int upper_bits = atoi(strtok(NULL, ","));
+		int lower_bits = atoi(strtok(NULL, ","));
+
+		// Calculate the decimal version of the port number
+		int calculated_port = (upper_bits << 8) + lower_bits;
+
+		// Free the old port
+		free(current_context->PORT);
+		current_context->PORT = NULL;
+		// Allocate a new buffer for the new port
+		current_context->PORT = calloc(6, 1);
+		sprintf(current_context->PORT, "%d", calculated_port);
+	}
+	else {
+		// Separate IP Address from port name based on |
+		strtok(current_context->input_command, "|");
+		// Read until we get the two numbers corresponding to the port
+		for (int i = 0; i < 2; i++) {
+			current_context->input_command = strtok(NULL, "|");
+		}
+
+		current_context->PORT = calloc(6, 1);
+		sprintf(current_context->PORT, "%s", current_context->input_command);
+	}
 
 	print_debug("Client port for active FTP: ");
 	print_debug(current_context->PORT);
 	print_debug("\n");
-
-	// Send successful active FTP activation confirmation to client
-	ssize_t nwrite = write(current_context->client_comm_fd,
-		"200 Entering active mode\r\n",
-		strlen("200 Entering active mode\r\n"));
-
-	if (nwrite < 0)
-		error("Error on writing active FTP success \
-			status to client\n");
-
-	// Switch the active FTP flag on
-	current_context->active_flag = 1;
-}
-
-// Handler function for the PORT FTP command
-void
-PORT_HANDLER(client_context_t * current_context) {
-	print_debug("Client issued command PORT!\n");
-
-	/*
-	 * Get IP Address + port name, formatted according to
-	 * the norms of the RFC
-	 * FTP standards
-	 */
-	current_context->input_command = strtok(NULL, " ");
-
-	print_debug("Client port for active FTP: ");
-	print_debug(current_context->input_command);
-	print_debug("\n");
-
-	// Separate IP Address from port name based on commas
-	strtok(current_context->input_command, ",");
-	// Read until we get the two numbers corresponding to the port
-	for (int i = 0; i < 3; i++)
-		strtok(NULL, ",");
-
-	/*
-	 * Obtain the upper bits and lower bits
-	 *	of the port
-	 * number in binary
-	 */
-	int upper_bits = atoi(strtok(NULL, ","));
-	int lower_bits = atoi(strtok(NULL, ","));
-
-	// Calculate the decimal version of the port number
-	int calculated_port = (upper_bits << 8) + lower_bits;
-
-	// Free the old port
-	free(current_context->PORT);
-	current_context->PORT = NULL;
-	// Allocate a new buffer for the new port
-	current_context->PORT = calloc(6, 1);
-	sprintf(current_context->PORT, "%d", calculated_port);
 
 	// Send successful active FTP activation confirmation to client
 	ssize_t nwrite = write(current_context->client_comm_fd,

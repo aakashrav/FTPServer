@@ -11,8 +11,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#if defined(sun) || defined(__sun)
+# if defined(__SVR4) || defined(__svr4__)
+/* Solaris */
+#include <dirent.h>
+# else
+/* SunOS */
+#include <dirent.h>
+# endif
+#else
 #include <dirent.h>
 #include <sys/dir.h>
+#endif
 #include <sys/stat.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>

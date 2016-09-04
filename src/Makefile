@@ -3,6 +3,7 @@ SERVER_OBJECTS=$(SERVER_SOURCES:.c=.o)
 CC=gcc
 CFLAGS=-c -Wall -std=c99 -I../include -MP -MMD -D_DEFAULT_SOURCE
 EXECUTABLE_DIRECTORY=.
+UNAME := $(shell uname)
 
 all: ftp2_server
 
@@ -10,7 +11,11 @@ all: ftp2_server
 	$(CC) $(CFLAGS) $<
 
 ftp2_server: $(SERVER_OBJECTS)
+ifeq ($(UNAME),SunOS)
+	$(CC) -o $(EXECUTABLE_DIRECTORY)/$@ -pthread -lsocket -lnsl $(SERVER_OBJECTS)
+else
 	$(CC) -o $(EXECUTABLE_DIRECTORY)/$@ -pthread $(SERVER_OBJECTS)
+endif
 
 clean:
 	-rm $(EXECUTABLE_DIRECTORY)/ftp2_server

@@ -24,7 +24,6 @@
 #include <sys/dir.h>
 #endif
 #include <sys/stat.h>
-#include <ifaddrs.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <arpa/inet.h>

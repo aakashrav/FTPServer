@@ -11,10 +11,19 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#if defined(sun) || defined(__sun)
+# if defined(__SVR4) || defined(__svr4__)
+/* Solaris */
+#include <dirent.h>
+# else
+/* SunOS */
+#include <dirent.h>
+# endif
+#else
 #include <dirent.h>
 #include <sys/dir.h>
+#endif
 #include <sys/stat.h>
-#include <ifaddrs.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -77,8 +86,8 @@ get_random_port();
  * Formats the local interface address and port in the
  * format prescribed by RFC for FTP protocol
  */
-char *
-get_formatted_local_ip_address(unsigned int port, int IPV4ONLY);
+// char *
+// get_formatted_local_ip_address(unsigned int port, int IPV4ONLY);
 
 /*
  * Connects to the client with the given

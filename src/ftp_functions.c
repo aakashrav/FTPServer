@@ -1584,8 +1584,8 @@ initiate_server(long port) {
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
 
-	char * port_pointer = NULL;
-	asprintf(&port_pointer, "%ld", port);
+	char * port_pointer = calloc(10,1);
+	sprintf(port_pointer, "%ld", port);
 
 	print_debug("Initiating server on port: ");
 	print_debug(port_pointer);

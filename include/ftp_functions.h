@@ -83,6 +83,10 @@ init();
 void *
 ftp_thread(void * args);
 
+// Initiates a 'listen'ing server socket for passive mode
+struct sockaddr_storage
+initiate_server_PASV(int * data_fd, int IPV4FLAG);
+
 // Initiates a 'listen'ing server socket at the given port
 int
 initiate_server(long port);

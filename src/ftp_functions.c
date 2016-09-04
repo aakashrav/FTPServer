@@ -373,10 +373,15 @@ PASV_EPSV_HANDLER(client_context_t * current_context) {
 		print_debug("Client issued command EPSV!\n");
 
 	// Choose a random port to listen for data connections
-	current_context->data_port = get_random_port();
+	// current_context->data_port = get_random_port();
 
 	// Generate a socket that is listening on the randomly generated port
-	current_context->data_fd = initiate_server(current_context->data_port);
+	// current_context->data_fd = initiate_server(current_context->data_port);
+	// if (current_context->data_fd < 0)
+	// 	error("Error initiating passive FTP socket!\n");
+	struct sockaddr_storage ad = \
+	initiate_server_PASV(&(current_context->data_fd),\
+		current_context->PASV_EPSV_FLAG);
 	if (current_context->data_fd < 0)
 		error("Error initiating passive FTP socket!\n");
 
@@ -384,15 +389,36 @@ PASV_EPSV_HANDLER(client_context_t * current_context) {
 	 * Get formatted IP Address + Port to send to the client.
 	 */
 	char * local_ip_address;
-	if (current_context->PASV_EPSV_FLAG == 0)
-		local_ip_address =
-			get_formatted_local_ip_address(current_context->data_port, 1);
-	else
-		local_ip_address =
-			get_formatted_local_ip_address(current_context->data_port, 0);
+	if (current_context->PASV_EPSV_FLAG == 0) {
+		// local_ip_address =
+		// 	get_formatted_local_ip_address(current_context->data_port, 1);
+		struct sockaddr_in * ad4 = (struct sockaddr_in *)&ad;
+		local_ip_address = calloc(INET_ADDRSTRLEN,1);
 
-	if (local_ip_address == NULL)
-		error("Error on getting formatted local IP Address\n");
+		char * ip_addr = calloc(INET_ADDRSTRLEN,1);
+		inet_ntop(AF_INET,&(ad4->sin_addr.s_addr), \
+			ip_addr,INET_ADDRSTRLEN);
+		for (int i = 0; i < strlen(ip_addr); i++) {
+			if (ip_addr[i] == '.')
+				ip_addr[i] = ',';
+		}
+
+		sprintf(local_ip_address,"(%s,%d,%d)",\
+			ip_addr, ad4->sin_port/256, \
+			ad4->sin_port%256);
+		free(ip_addr);
+		ip_addr = NULL;
+	}
+	else {
+		// local_ip_address =
+		// 	get_formatted_local_ip_address(current_context->data_port, 0);
+		struct sockaddr_in6 * ad6 = (struct sockaddr_in6 *)&ad;
+		local_ip_address = calloc(INET6_ADDRSTRLEN,1);
+		sprintf(local_ip_address,"(|||%d|)",ad6->sin6_port);
+	}
+
+	// if (local_ip_address == NULL)
+	// 	error("Error on getting formatted local IP Address\n");
 
 	/*
 	 * Construct status message for client,
@@ -1451,8 +1477,98 @@ LIST(char * dir_name) {
 
 /*
  * Initialize a 'listen'ing server for a
- * specific port number on the local machine;
- * used in conjunction with the Passive FTP module
+ * any port number on the local machine;
+ * used in conjunction with the Passive FTP module.
+ */
+struct sockaddr_storage
+initiate_server_PASV(int * data_fd, int IPV4FLAG) {
+
+	int err;
+	// struct addrinfo hints;
+	// struct addrinfo * res;
+	// struct addrinfo * res_original;
+	// memset(&hints, 0, sizeof (struct addrinfo));
+
+	// hints.ai_family = AF_INET6;
+	// hints.ai_socktype = SOCK_STREAM;
+	// hints.ai_protocol = IPPROTO_TCP;
+	// hints.ai_flags = AI_PASSIVE;
+
+	// char * port_pointer = NULL;
+	// asprintf(&port_pointer, "%ld", port);
+
+	struct sockaddr_storage my_addr;
+
+	if (!IPV4FLAG) {
+		struct sockaddr_in * my_addr4 = (struct sockaddr_in*)&my_addr;
+
+		*data_fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (*data_fd < 0) {
+			error("Error on initiating server!\n");
+		}
+
+		// Allow socket to be reused
+		if (setsockopt(*data_fd, SOL_SOCKET, SO_REUSEADDR, \
+			&(int){ 1 }, sizeof(int)) < 0)
+    		error("setsockopt(SO_REUSEADDR) failed");
+
+    	memset(my_addr4, 0, sizeof(*my_addr4));
+
+		my_addr4->sin_family = AF_INET;
+		my_addr4->sin_port = 0;     // short, network byte order
+		my_addr4->sin_addr.s_addr = INADDR_ANY;
+		memset(my_addr4->sin_zero, '\0', sizeof my_addr4->sin_zero);
+
+		err = bind(*data_fd, (struct sockaddr *)my_addr4, sizeof *my_addr4);
+		if (err == -1)
+				error("Error on binding during\
+					initiate server.\n");
+
+		print_debug("Initiating server on port: ");
+		printf("%hu",my_addr4->sin_port);
+		print_debug("\n");
+	}
+	else {
+		struct sockaddr_in6 * my_addr6 = (struct sockaddr_in6 *)&my_addr;
+
+		*data_fd = socket(AF_INET6, SOCK_STREAM, 0);
+		if (*data_fd < 0) {
+			error("Error on initiating server!\n");
+		}
+
+		// Allow socket to be reused
+		if (setsockopt(*data_fd, SOL_SOCKET, SO_REUSEADDR, \
+			&(int){ 1 }, sizeof(int)) < 0)
+    		error("setsockopt(SO_REUSEADDR) failed");
+
+    	memset(my_addr6, 0, sizeof(*my_addr6));
+
+		my_addr6->sin6_family = AF_INET6;
+		my_addr6->sin6_port = 0;     // short, network byte order
+		my_addr6->sin6_addr = in6addr_any;
+
+		err = bind(*data_fd, (struct sockaddr *)my_addr6, sizeof *my_addr6);
+		if (err == -1)
+				error("Error on binding during\
+					initiate server.\n");
+
+		print_debug("Initiating server on port: ");
+		printf("%hu",my_addr6->sin6_port);
+		print_debug("\n");
+	}
+
+
+	err = listen(*data_fd, MAX_NUM_CONNECTED_CLIENTS);
+			if (err == -1)
+				error("Error on listen during\
+					initiate server.\n");
+
+	return (my_addr);
+}
+
+/*
+ * Initialize a 'listen'ing server for a
+ * specific port number on the local machine.
  */
 int
 initiate_server(long port) {

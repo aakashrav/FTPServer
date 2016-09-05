@@ -3,7 +3,7 @@ SERVER_OBJECTS=$(SERVER_SOURCES:.c=.o)
 CC=gcc
 CFLAGS=-c -Wall -std=c99 -I../include -MP -MMD -D_DEFAULT_SOURCE
 EXECUTABLE_DIRECTORY=.
-UNAME := $(shell uname)
+UNAME := `uname`
 
 all: ftp2_server
 
@@ -18,7 +18,7 @@ else
 endif
 
 clean:
-	-rm $(EXECUTABLE_DIRECTORY)/ftp2_server
-	-rm $(SERVER_OBJECTS) 2>/dev/null
-	-rm $(SERVER_SOURCES:.c=.d) 2>/dev/null
+	-rm -f $(EXECUTABLE_DIRECTORY)/ftp2_server
+	-rm -f $(SERVER_OBJECTS) 2>/dev/null
+	-rm -f $(SERVER_SOURCES:.c=.d) 2>/dev/null
 	

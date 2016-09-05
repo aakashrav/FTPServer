@@ -1484,19 +1484,6 @@ struct sockaddr_storage
 initiate_server_PASV(int * data_fd, int IPV4FLAG) {
 
 	int err;
-	// struct addrinfo hints;
-	// struct addrinfo * res;
-	// struct addrinfo * res_original;
-	// memset(&hints, 0, sizeof (struct addrinfo));
-
-	// hints.ai_family = AF_INET6;
-	// hints.ai_socktype = SOCK_STREAM;
-	// hints.ai_protocol = IPPROTO_TCP;
-	// hints.ai_flags = AI_PASSIVE;
-
-	// char * port_pointer = NULL;
-	// asprintf(&port_pointer, "%ld", port);
-
 	struct sockaddr_storage my_addr;
 
 	if (!IPV4FLAG) {

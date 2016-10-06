@@ -1,10 +1,8 @@
-An implementation of a standard FTP server built for UNIX systems, meant to be used with standard FTP Clients.
+An implementation of a standard FTP server built for UNIX systems, meant to be used with standard FTP Clients - tested with Linux, Mac OS X, and Solaris.
 
+The server supports all standard commands, such as get, put, mkdir, rmdir, etc.
 
-
-
-
-
+The server also supports both passive and extended passive mode.
 
 Usage: ./ftp2_server <port>
 
